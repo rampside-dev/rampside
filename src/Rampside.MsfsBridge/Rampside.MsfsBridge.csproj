@@ -17,7 +17,7 @@
     <None Include="$(MsfsSimConnectNativeDll)" Link="SimConnect.dll" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- Without the SDK this project builds empty, so Core, App (--fake) and tests still work. -->
+  <!-- Without the SDK this project builds empty, so Core, App (fake sim) and tests still work. -->
   <ItemGroup Condition="'$(RampsideHasMsfsSdk)' != 'true'">
     <Compile Remove="**/*.cs" />
   </ItemGroup>
