@@ -17,6 +17,9 @@ public class GsxProfileTests
     private static readonly (double Lat, double Lon) TurnEnd = At(Turn, (70, 30), (160, 30));
     private static readonly (double Lat, double Lon) Final = At(TurnEnd, (160, 20));
 
+    /// <summary>Push and pull: after the turn (nose 340°) the tug tows the aircraft forwards, turning right to 70°.</summary>
+    private static readonly (double Lat, double Lon) Towed = At(TurnEnd, (340, 10), (25, 15), (70, 10));
+
     [Fact]
     public void Python_literal_reads_gsx_values()
     {
@@ -193,22 +196,90 @@ public class GsxProfileTests
     }
 
     [Fact]
-    public void Target_that_ends_with_a_forward_tow_stops_where_the_tow_begins()
+    public void Push_and_pull_target_becomes_a_push_then_a_forward_tow()
     {
-        // After the turn the GSX tug would pull the aircraft 30 m forwards (nose 340°, moving 340°).
-        var towed = Geo.Offset(TurnEnd.Lat, TurnEnd.Lon, 340, 30, 0);
+        var notes = new List<string>();
+
+        var option = Assert.Single(GsxPushbackBuilder.Build(Start, PushAndPull(), notes));
+
+        // Pushed to the end of the turn, then towed forwards (nose first) to the target.
+        Assert.True((option.Path[^1] - Geo.ToLocal(Start.Latitude, Start.Longitude, TurnEnd.Lat, TurnEnd.Lon)).Length < 0.01);
+        var tow = Assert.Single(option.Then!);
+        Assert.True(tow.Forward);
+        Assert.Equal(option.Path[^1], tow.Path[0]);
+        Assert.True((tow.Path[^1] - Geo.ToLocal(Start.Latitude, Start.Longitude, Towed.Lat, Towed.Lon)).Length < 0.01);
+        Assert.InRange(option.TowMeters, 29, 36); // a quarter turn over a 29 m chord
+        Assert.InRange(Math.Abs(Geo.HeadingDifference(option.FinalHeadingDeg, 70)), 0, 0.5);
+        Assert.Equal(CompassDirection.East, option.Facing);
+        Assert.Contains(notes, n => n.StartsWith("Towed: push and pull, towed forwards", StringComparison.Ordinal));
+
+        // The tow leaves along the nose (340°) and arrives along the target heading (70°).
+        Assert.InRange(Math.Abs(Geo.HeadingDifference((tow.Path[1] - tow.Path[0]).HeadingDeg, 340)), 0, 3);
+        Assert.InRange(Math.Abs(Geo.HeadingDifference((tow.Path[^1] - tow.Path[^2]).HeadingDeg, 70)), 0, 3);
+    }
+
+    [Fact]
+    public void Push_and_pull_is_flown_with_a_stop_between_push_and_tow()
+    {
+        var rig = new TestRig(state: Start with { Stand = FakeSimBridge.DemoStand }, gsx: new FixedSource(PushAndPull()));
+        rig.Run(0.1);
+
+        Assert.True(rig.Orchestrator.RequestPlannedPushback("towed").Accepted);
+        rig.Run(6);
+        rig.SetParkingBrake(false);
+        var details = new HashSet<string>();
+        var maxForward = 0.0;
+        var minBackward = 0.0;
+        var stoppedBetween = false;
+        for (var t = 0; t < 600 && !rig.Orchestrator.Pushback.Detail.Contains("set parking brake"); t++)
+        {
+            rig.Run(0.5);
+            var pushback = rig.Orchestrator.Pushback;
+            details.Add(pushback.Detail);
+            maxForward = Math.Max(maxForward, pushback.SpeedMps);
+            minBackward = Math.Min(minBackward, pushback.SpeedMps);
+            stoppedBetween |= pushback.Detail.StartsWith("Stopping, then towing forwards", StringComparison.Ordinal) && pushback.SpeedMps == 0;
+        }
+
+        Assert.Contains("Towing forwards, Towed", details);
+        Assert.True(stoppedBetween);
+        Assert.True(minBackward < -1 && maxForward > 1, $"speeds {minBackward:F1} .. {maxForward:F1} m/s");
+        var end = rig.Sim.State;
+        Assert.InRange(StandLocator.DistanceMeters(end.Latitude, end.Longitude, Towed.Lat, Towed.Lon), 0, 1.5);
+        Assert.InRange(Math.Abs(Geo.HeadingDifference(end.HeadingTrueDeg, 70)), 0, 6);
+    }
+
+    [Fact]
+    public void Manual_steering_while_towing_keeps_towing_forwards()
+    {
+        var rig = new TestRig(state: Start with { Stand = FakeSimBridge.DemoStand }, gsx: new FixedSource(PushAndPull()));
+        rig.Run(0.1);
+        Assert.True(rig.Orchestrator.RequestPlannedPushback("towed").Accepted);
+        rig.Run(6);
+        rig.SetParkingBrake(false);
+        for (var t = 0; t < 600 && !rig.Orchestrator.Pushback.Detail.StartsWith("Towing forwards", StringComparison.Ordinal); t++)
+        {
+            rig.Run(0.5);
+        }
+
+        rig.Orchestrator.SteerPushback(PushbackSteering.TailLeft);
+        var heading = rig.Sim.State.HeadingTrueDeg;
+        rig.Run(4);
+
+        var pushback = rig.Orchestrator.Pushback;
+        Assert.Equal("Towing forwards, manual steering", pushback.Detail);
+        Assert.True(pushback.SpeedMps > 0);
+        Assert.True(pushback.SteeringDeg > 0); // tail left when towing: nose wheel right
+        Assert.True(Geo.HeadingDifference(heading, rig.Sim.State.HeadingTrueDeg) > 0); // nose turns right, tail swings left
+    }
+
+    private static GsxStandMatch PushAndPull()
+    {
         var target = new GsxPushbackTarget(
             "Towed",
             new[] { new GsxPose(Turn.Lat, Turn.Lon, 250), new GsxPose(TurnEnd.Lat, TurnEnd.Lon, 340) },
-            new GsxPose(towed.Latitude, towed.Longitude, 340));
-        var stand = Match().Stand with { PushbackTargets = new[] { target } };
-        var notes = new List<string>();
-
-        var option = Assert.Single(GsxPushbackBuilder.Build(Start, new GsxStandMatch("test", stand, 0), notes));
-
-        Assert.True((option.Path[^1] - Geo.ToLocal(Start.Latitude, Start.Longitude, TurnEnd.Lat, TurnEnd.Lon)).Length < 0.01);
-        Assert.InRange(Math.Abs(Geo.HeadingDifference(option.FinalHeadingDeg, 340)), 0, 0.5);
-        Assert.Contains(notes, n => n.Contains("ends 30 m early"));
+            new GsxPose(Towed.Lat, Towed.Lon, 70));
+        return new GsxStandMatch("test", Match().Stand with { PushbackTargets = new[] { target } }, 0);
     }
 
     [Fact]

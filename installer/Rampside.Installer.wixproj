@@ -1,0 +1,33 @@
+<Project Sdk="WixToolset.Sdk/7.0.1">
+
+  <!--
+    Builds Rampside-<version>-x64.msi from a self-contained publish of the desktop app.
+    Use build-installer.bat in the repository root; it publishes the app first and passes RampsideAppDir.
+  -->
+  <PropertyGroup>
+    <OutputName>Rampside-$(Version)-x64</OutputName>
+    <Platform>x64</Platform>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <RampsideAppDir Condition="'$(RampsideAppDir)' == ''">$(MSBuildThisFileDirectory)obj\publish\</RampsideAppDir>
+    <DefineConstants>AppDir=$(RampsideAppDir);ProductVersion=$(Version)</DefineConstants>
+    <!-- ICE61 only warns that AllowSameVersionUpgrades lets a rebuild of the same version replace the old one. -->
+    <SuppressIces>ICE61</SuppressIces>
+    <!--
+      WiX v7 EULA (Open Source Maintenance Fee), accepted by the project owner on 2026-10-30.
+      The fee applies only to organizations with more than US$10,000 annual revenue: https://wixtoolset.org/osmf/
+    -->
+    <AcceptEula>wix7</AcceptEula>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="7.0.1" />
+  </ItemGroup>
+
+  <Target Name="RampsideCheckAppDir" BeforeTargets="Build">
+    <Error Condition="!Exists('$(RampsideAppDir)Rampside.exe')"
+           Text="No published app in $(RampsideAppDir). Run build-installer.bat in the repository root." />
+    <Error Condition="!Exists('$(RampsideAppDir)SimConnect.dll')"
+           Text="The published app has no SimConnect.dll, so it could only run with --fake. Build with the MSFS 2024 SDK." />
+  </Target>
+
+</Project>

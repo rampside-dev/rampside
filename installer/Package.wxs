@@ -1,0 +1,49 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+  <!--
+    UpgradeCode never changes: it is how Windows knows a new Rampside MSI replaces the old one.
+    Raise <Version> in Directory.Build.props for each release.
+  -->
+  <Package Name="Rampside"
+           Manufacturer="Rampside contributors"
+           Version="$(var.ProductVersion)"
+           UpgradeCode="0EC168ED-3674-44CB-BEB7-62890CF2AF1D"
+           Scope="perMachine">
+
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="A newer version of Rampside is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="RampsideIcon" SourceFile="..\assets\rampside.ico" />
+    <Property Id="ARPPRODUCTICON" Value="RampsideIcon" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Rampside" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="StartMenuShortcut">
+        <Shortcut Id="RampsideStartMenu"
+                  Name="Rampside"
+                  Description="Ground services for MSFS 2024"
+                  Target="[INSTALLFOLDER]Rampside.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="RampsideIcon" />
+        <!-- A shortcut needs a key path; Windows Installer rules want it under HKCU, even for a per-machine install. -->
+        <RegistryValue Root="HKCU" Key="Software\Rampside" Name="StartMenuShortcut"
+                       Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+
+    <Feature Id="Main">
+      <!-- Everything from the self-contained publish: Rampside.exe, the .NET runtime, SimConnect.dll, profiles, crew voices. -->
+      <Files Directory="INSTALLFOLDER" Include="$(var.AppDir)**" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+
+    <!-- Wizard: welcome, license, install folder, progress, finish. -->
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+  </Package>
+</Wix>

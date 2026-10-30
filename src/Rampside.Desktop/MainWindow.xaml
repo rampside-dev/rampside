@@ -4,6 +4,7 @@
         xmlns:local="clr-namespace:Rampside.Desktop"
         xmlns:vm="clr-namespace:Rampside.Desktop.ViewModels"
         Title="Rampside"
+        Icon="rampside.ico"
         Width="520" Height="820" MinWidth="440" MinHeight="480"
         Background="{StaticResource WindowBackground}"
         Foreground="{StaticResource TextPrimary}"

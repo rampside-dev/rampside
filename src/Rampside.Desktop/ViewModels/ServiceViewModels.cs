@@ -337,7 +337,9 @@ public sealed class PushbackViewModel : ServiceViewModel
                 var label = option.Label;
                 Directions.Add(new PushbackDirectionViewModel(
                     option.Name ?? Compass.Name(option.Facing),
-                    $"Push back {label}, {Format.Whole(option.LengthMeters)} m, nose ends at {Format.Whole(option.FinalHeadingDeg)}° true",
+                    option.TowMeters > 0
+                        ? $"Push and pull {label}, {Format.Whole(option.LengthMeters - option.TowMeters)} m back, then towed forwards {Format.Whole(option.TowMeters)} m, nose ends at {Format.Whole(option.FinalHeadingDeg)}° true"
+                        : $"Push back {label}, {Format.Whole(option.LengthMeters)} m, nose ends at {Format.Whole(option.FinalHeadingDeg)}° true",
                     Command(o => o.RequestPlannedPushback(label), () => !IsBusy)));
             }
 

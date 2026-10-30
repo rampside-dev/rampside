@@ -284,7 +284,9 @@ internal sealed class ConsoleShell
             return o.RequestPushback();
         }
 
-        var choices = options.Select((x, i) => $"  push {i + 1}  {x.Label}, {x.LengthMeters:F0} m, nose ends {x.FinalHeadingDeg:F0}°");
+        var choices = options.Select((x, i) => $"  push {i + 1}  {x.Label}, {x.LengthMeters:F0} m"
+            + (x.TowMeters > 0 ? $" (push and pull, towed forwards {x.TowMeters:F0} m)" : string.Empty)
+            + $", nose ends {x.FinalHeadingDeg:F0}°");
         var source = options[0].Source is { } from ? $" (from {from})" : string.Empty;
         return CommandResult.Ok($"Which way?{source}{Environment.NewLine}{string.Join(Environment.NewLine, choices)}{Environment.NewLine}  push manual");
     }

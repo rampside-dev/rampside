@@ -52,13 +52,22 @@ public static class Compass
     }
 }
 
+/// <summary>One stretch of a pushback, driven in one direction (path of the reference point in the option's local frame).</summary>
+/// <param name="Forward">True when the tug tows the aircraft forwards (nose first), false when it pushes it backwards.</param>
+public sealed record PushbackLeg(IReadOnlyList<Vec2> Path, bool Forward);
+
 /// <summary>
 /// A planned pushback: the path of the aircraft reference point in a local frame around <see cref="OriginLatitude"/>/
 /// <see cref="OriginLongitude"/> (the position where the pushback starts), ending on a taxi line with the nose
 /// pointing <see cref="FinalHeadingDeg"/>.
 /// </summary>
+/// <param name="Path">The pushback itself: the tug pushes the aircraft backwards along it.</param>
 /// <param name="Name">Name given by the source, e.g. a GSX profile's "Facing South - E1"; null for planned options.</param>
 /// <param name="Source">Where the option comes from, e.g. "GSX profile eddm-simwings"; null when Rampside planned it.</param>
+/// <param name="Then">
+/// Stretches after <paramref name="Path"/>, each starting where the one before ends, e.g. GSX's push and pull:
+/// pushed off the stand, then towed forwards onto the taxiway. The tug stops between them. Null = push only.
+/// </param>
 public sealed record PushbackOption(
     CompassDirection Facing,
     double FinalHeadingDeg,
@@ -67,13 +76,20 @@ public sealed record PushbackOption(
     double OriginLongitude,
     IReadOnlyList<Vec2> Path,
     string? Name = null,
-    string? Source = null)
+    string? Source = null,
+    IReadOnlyList<PushbackLeg>? Then = null)
 {
     public string Label => Name ?? (string.IsNullOrEmpty(Taxiway)
         ? $"facing {Compass.Name(Facing)}"
         : $"facing {Compass.Name(Facing)} on {Taxiway}");
 
-    public double LengthMeters => PathLength(Path);
+    /// <summary>Every stretch in order: <see cref="Path"/> backwards, then <see cref="Then"/>.</summary>
+    public IReadOnlyList<PushbackLeg> Legs => [new PushbackLeg(Path, Forward: false), .. Then ?? []];
+
+    public double LengthMeters => Legs.Sum(l => PathLength(l.Path));
+
+    /// <summary>How far the tug tows the aircraft forwards in all; 0 for a plain pushback.</summary>
+    public double TowMeters => (Then ?? []).Where(l => l.Forward).Sum(l => PathLength(l.Path));
 
     internal static double PathLength(IReadOnlyList<Vec2> path)
     {

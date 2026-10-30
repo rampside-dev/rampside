@@ -8,7 +8,13 @@
     <RootNamespace>Rampside.Desktop</RootNamespace>
     <AssemblyName>Rampside</AssemblyName>
     <PlatformTarget>x64</PlatformTarget>
+    <ApplicationIcon>..\..\assets\rampside.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Same icon as a WPF resource for MainWindow.Icon. Source: assets/rampside.svg, built by tools/icon/build_icon.py. -->
+    <Resource Include="..\..\assets\rampside.ico" Link="rampside.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Rampside.Hosting\Rampside.Hosting.csproj" />

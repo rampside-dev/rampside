@@ -1,3 +1,5 @@
+<img src="assets/rampside.svg" alt="Rampside logo" width="96">
+
 # Rampside
 
 Open-source ground services for Microsoft Flight Simulator 2024: pushback, boarding and deboarding,
@@ -77,6 +79,16 @@ push stop
 In fake mode, `brake` toggles the parking brake and `engines` toggles the engines. `--fake-pmdg` simulates a
 PMDG 737 with doors (`doors`, `door l1 open`, `power off`).
 
+## Installer
+
+Double-click `build-installer.bat` (needs the MSFS 2024 SDK). It publishes the desktop app self-contained and
+builds `installer\bin\x64\Release\Rampside-<version>-x64.msi` with the [WiX Toolset](https://wixtoolset.org).
+Players need nothing else: the MSI brings the .NET runtime, SimConnect, profiles and crew voices, installs to
+`C:\Program Files\Rampside` and adds a Start menu entry. Settings stay in `%AppData%\Rampside`.
+
+For a release, raise `<Version>` in [Directory.Build.props](Directory.Build.props); the new MSI then replaces
+the installed version. The MSI is not code-signed yet, so Windows SmartScreen warns on first start.
+
 ## Aircraft profiles
 
 Per-aircraft settings live in [`profiles/`](profiles/) as JSON (comments allowed). A profile is picked
@@ -91,6 +103,7 @@ src/Rampside.Core         service logic, rules, profiles, fake simulator (no MSF
 src/Rampside.MsfsBridge   SimConnect connection to MSFS 2024
 src/Rampside.App          console host
 tests/Rampside.Core.Tests unit tests
+installer/                WiX project for the MSI (built by build-installer.bat)
 profiles/                 aircraft profiles
 docs/                     architecture and roadmap
 ```

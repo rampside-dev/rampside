@@ -7,8 +7,8 @@ namespace Rampside.Core.Gsx;
 /// Turns the pushback targets of a GSX stand into <see cref="PushbackOption"/>s that start at the aircraft.
 /// Between two points the path is a curve that leaves and arrives in the direction of the aircraft heading
 /// given for each point, so the tug follows the shape the profile author drew.
-/// GSX targets may end with the tug towing the aircraft forwards (e.g. along a taxiway to a remote area);
-/// Rampside's tug only pushes, so such a pushback ends where the forward part begins.
+/// GSX targets may go on with the tug towing the aircraft forwards (push and pull, e.g. along a taxiway to a
+/// remote area); such a target becomes a pushback followed by forward legs (<see cref="PushbackOption.Then"/>).
 /// </summary>
 public static partial class GsxPushbackBuilder
 {
@@ -48,9 +48,10 @@ public static partial class GsxPushbackBuilder
                 continue;
             }
 
-            if (built.CutMeters > 0)
+            var legs = built.Legs;
+            if (legs.Any(l => l.Forward))
             {
-                notes?.Add($"{target.Label}: ends {built.CutMeters:F0} m early, the tug does not tow forwards");
+                notes?.Add($"{target.Label}: push and pull, towed forwards {legs.Where(l => l.Forward).Sum(l => PushbackOption.PathLength(l.Path)):F0} m");
             }
 
             var label = target.Label;
@@ -60,7 +61,15 @@ public static partial class GsxPushbackBuilder
             }
 
             options.Add(new PushbackOption(
-                Compass.FromHeading(built.FinalHeadingDeg), built.FinalHeadingDeg, string.Empty, state.Latitude, state.Longitude, built.Path, label, source));
+                Compass.FromHeading(built.FinalHeadingDeg),
+                built.FinalHeadingDeg,
+                string.Empty,
+                state.Latitude,
+                state.Longitude,
+                legs[0].Path,
+                label,
+                source,
+                legs.Count > 1 ? legs.Skip(1).ToArray() : null));
         }
 
         // Profile authors list the targets in any order; group them by where they end, then by direction.
@@ -86,7 +95,7 @@ public static partial class GsxPushbackBuilder
         System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
     private static partial System.Text.RegularExpressions.Regex FacingLabel();
 
-    private static (IReadOnlyList<Vec2> Path, double FinalHeadingDeg, double CutMeters)? BuildPath(
+    private static (IReadOnlyList<PushbackLeg> Legs, double FinalHeadingDeg)? BuildPath(
         AircraftState state, GsxPushbackTarget target, out string reason)
     {
         var originLat = state.Latitude;
@@ -121,58 +130,64 @@ public static partial class GsxPushbackBuilder
             return null;
         }
 
-        // A leg against the backward motion at both of its ends is the tug towing forwards: stop before it.
-        var cut = 0.0;
-        for (var i = 0; i < poses.Count - 1; i++)
+        // A stretch that runs along the nose at both of its ends is the tug towing forwards; every other one is pushed.
+        var towed = new bool[poses.Count - 1];
+        for (var i = 0; i < towed.Length; i++)
         {
-            var leg = poses[i + 1].Point - poses[i].Point;
-            if (Vec2.Dot(leg, Motion(poses, i) + Motion(poses, i + 1)) < 0)
-            {
-                for (var j = i; j < poses.Count - 1; j++)
-                {
-                    cut += (poses[j + 1].Point - poses[j].Point).Length;
-                }
-
-                poses.RemoveRange(i + 1, poses.Count - i - 1);
-                break;
-            }
+            var stretch = poses[i + 1].Point - poses[i].Point;
+            towed[i] = Vec2.Dot(stretch, Backwards(poses, i) + Backwards(poses, i + 1)) < 0;
         }
 
-        if (poses.Count < 2)
+        if (towed[0])
         {
             reason = "does not start behind the aircraft";
             return null;
         }
 
-        var motion = new Vec2[poses.Count];
-        for (var i = 0; i < poses.Count; i++)
+        // Consecutive stretches in one direction make one leg; the tug stops where the direction changes.
+        var legs = new List<PushbackLeg>();
+        var legStart = 0;
+        for (var i = 1; i <= towed.Length; i++)
         {
-            motion[i] = Motion(poses, i);
-        }
+            if (i < towed.Length && towed[i] == towed[legStart])
+            {
+                continue;
+            }
 
-        var path = new List<Vec2> { poses[0].Point };
-        for (var i = 1; i < poses.Count; i++)
-        {
-            AddCurve(path, poses[i - 1].Point, motion[i - 1], poses[i].Point, motion[i]);
+            var path = new List<Vec2> { poses[legStart].Point };
+            for (var k = legStart + 1; k <= i; k++)
+            {
+                AddCurve(path, poses[k - 1].Point, Travel(poses, k - 1, towed[legStart]), poses[k].Point, Travel(poses, k, towed[legStart]));
+            }
+
+            legs.Add(new PushbackLeg(path, towed[legStart]));
+            legStart = i;
         }
 
         reason = string.Empty;
-        var finalHeading = Geo.NormalizeHeading((-motion[^1]).HeadingDeg); // the nose points against the motion
-        return (path, finalHeading, cut);
+        var last = legs[^1].Forward;
+        var travel = Travel(poses, poses.Count - 1, last);
+        var finalHeading = Geo.NormalizeHeading((last ? travel : -travel).HeadingDeg);
+        return (legs, finalHeading);
     }
 
     /// <summary>
-    /// Direction the reference point moves at a pose: backwards along the given heading. A point without heading is
-    /// in practice the last one before the target, on the target's line, so it takes the heading of the next point
-    /// that has one (or, failing that, the line through its neighbours).
+    /// Direction the reference point moves at a pose when pushed: backwards along the given heading. A point without
+    /// heading is in practice the last one before the target, on the target's line, so it takes the heading of the next
+    /// point that has one (or, failing that, the line through its neighbours).
     /// </summary>
-    private static Vec2 Motion(List<(Vec2 Point, double? Heading)> poses, int i)
-    {
-        var heading = poses.Skip(i).Select(p => p.Heading).FirstOrDefault(h => h is not null);
-        return heading is { } h
-            ? -Vec2.FromHeading(h)
-            : (poses[Math.Min(i + 1, poses.Count - 1)].Point - poses[Math.Max(i - 1, 0)].Point).Normalized;
-    }
+    private static Vec2 Backwards(List<(Vec2 Point, double? Heading)> poses, int i) =>
+        Heading(poses, i) is { } h ? -Vec2.FromHeading(h) : Line(poses, i);
+
+    /// <summary>Direction the reference point moves at a pose on a leg that is towed forwards or pushed.</summary>
+    private static Vec2 Travel(List<(Vec2 Point, double? Heading)> poses, int i, bool towed) =>
+        Heading(poses, i) is { } h ? (towed ? Vec2.FromHeading(h) : -Vec2.FromHeading(h)) : Line(poses, i);
+
+    private static double? Heading(List<(Vec2 Point, double? Heading)> poses, int i) =>
+        poses.Skip(i).Select(p => p.Heading).FirstOrDefault(h => h is not null);
+
+    private static Vec2 Line(List<(Vec2 Point, double? Heading)> poses, int i) =>
+        (poses[Math.Min(i + 1, poses.Count - 1)].Point - poses[Math.Max(i - 1, 0)].Point).Normalized;
 
     /// <summary>
     /// Cubic Bézier from <paramref name="a"/> to <paramref name="b"/>, tangent to the motion at both ends.

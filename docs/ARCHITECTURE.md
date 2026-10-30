@@ -258,6 +258,7 @@ before the tug disconnects (also on abort), then hands the pitch back to the sim
 used: the sim cannot be given a nose wheel angle (`GEAR STEER ANGLE` and `STEER INPUT CONTROL` are read-only,
 `STEERING_SET` needs hydraulic pressure), and the PMDG's nose wheel animation follows that angle only.
 Measured in MSFS 2024 with the PMDG 737: the nose wheel leaves the ground at about 1.7° nose up; GSX lifts about 2.4°.
+The default `noseLiftDeg` of 1.8° lifts it just clear (2.0° looked too steep).
 
 ### Planned pushback ("facing North-West")
 
@@ -271,7 +272,8 @@ Like GSX without a custom profile, but named by compass direction instead of "no
    compass points of the final nose heading (true north): e.g. "facing North on N".
 3. The path is straight back, an arc onto the line (`turnRadiusMeters`, smaller if the line is close, never
    tighter than the nose wheel allows) and `straightAfterTurnMeters` along the line.
-4. `PushbackService` follows it with pure pursuit in reverse, slows down towards the end and stops by itself.
+4. `PushbackService` follows it with pure pursuit in reverse, slows down towards the end and stops by itself
+   (GSX targets can add forward legs, see push and pull below).
    Any steering command (`left`/`right`/`straight`) switches to manual.
 
 ### Pushback targets from GSX profiles
@@ -292,10 +294,20 @@ The profiles belong to their authors: Rampside reads them from the user's GSX fo
 4. `GsxPushbackBuilder` starts the path at the aircraft and joins the points with Bézier curves tangent to the
    given headings (handle length of a circular arc). A missing heading is taken from the next point.
    Targets that do not start behind the aircraft, or whose first heading is more than 135° off (the aircraft
-   faces the other way), are left out. A GSX target can end with the tug towing the aircraft forwards
-   (the Aerosoft EDDF profile does this in about a third of its targets); Rampside's tug only pushes, so the pushback ends where
-   the forward part starts and the pilot taxis on from there.
-5. Without a GSX stand, or when none of its targets fits, `PushbackPlanner` plans as above.
+   faces the other way), are left out.
+5. **Push and pull.** A GSX target can go on with the tug towing the aircraft forwards (the Aerosoft EDDF profile
+   does this in about a third of its targets, e.g. A50 "Area 3": 241 m back, then 142 m forwards to face west).
+   A stretch between two points that runs along the nose at both ends is towed, every other one pushed; consecutive
+   stretches in one direction make one leg (`PushbackOption.Path` for the push, `Then` for the legs after it, each a
+   `PushbackLeg` with `Forward`). Where the direction changes the curves meet in a cusp: the tug stops.
+6. Without a GSX stand, or when none of its targets fits, `PushbackPlanner` plans as above.
+
+`PushbackService` flies the legs one after another: at the end of a leg it slows down and stops, stands still for
+`DirectionChangeSeconds` (3 s) while the nose wheel turns for the next leg, then drives the next leg in its direction
+(pure pursuit forwards: the nose wheel turns towards the path instead of away from it). Manual steering during a tow
+keeps towing forwards, so *tail left* then turns the nose wheel right. The crew says "coming to a stop" before the
+change; there is no recorded clip for "pulling forward" yet, so the tow itself is only shown in the status line.
+Simulated with the PMDG 737 profile, A50 "Area 3" ends 0.2 m from the GSX target with the nose 7° short of its heading.
 
 The orchestrator logs the match once per stand, e.g.
 `GSX profile eddm-simwings: Gate 121 is [gate 121] (0.3 m from the MSFS spot), 4 of 4 pushback targets usable`.

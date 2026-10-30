@@ -42,7 +42,8 @@ public static class PushbackKinematics
 /// Tug connects, waits for the parking brake to be released, pushes back with steering,
 /// stops on request, waits for the parking brake and disconnects.
 /// With a <see cref="PushbackOption"/> the tug follows the planned path and stops at its end by itself;
-/// a steering command takes over manually.
+/// for a push and pull it stops after the push, turns the nose wheel and tows the aircraft forwards along the next leg.
+/// A steering command takes over manually, in the direction the tug is going.
 /// </summary>
 public sealed class PushbackService : GroundService
 {
@@ -52,15 +53,22 @@ public sealed class PushbackService : GroundService
         ConnectingTug,
         WaitingForBrakeRelease,
         Pushing,
+        ChangingDirection,
         Stopping,
         WaitingForBrakeSet,
         DisconnectingTug,
     }
 
+    /// <summary>The tug stands still this long between a push and a tow, turning the nose wheel for the new direction.</summary>
+    public const double DirectionChangeSeconds = 3;
+
     private Phase _phase;
     private TimeSpan _phaseElapsed;
     private bool _stopRequested;
     private PathFollower? _follower;
+    private PathFollower? _next; // the leg after a change of direction
+    private TimeSpan _stoppedFor;
+    private bool _manualForward; // manual steering while towing forwards
     private PushbackTug? _tug;
     private double? _naturalPitchDeg; // set while the nose wheel is lifted
     private bool _lowering;
@@ -72,7 +80,7 @@ public sealed class PushbackService : GroundService
     {
     }
 
-    /// <summary>Current tug speed; negative = backwards.</summary>
+    /// <summary>Current speed of the aircraft; negative = backwards (pushed), positive = towed forwards.</summary>
     public double SpeedMps { get; private set; }
     public double SteeringDeg { get; private set; }
     public PushbackSteering Steering { get; private set; }
@@ -86,7 +94,9 @@ public sealed class PushbackService : GroundService
         SteeringDeg = 0;
         Steering = PushbackSteering.Straight;
         _stopRequested = false;
-        _follower = plan is null ? null : new PathFollower(plan);
+        _follower = plan is null ? null : new PathFollower(plan, 0);
+        _next = null;
+        _manualForward = false;
         Progress = null;
         _tug?.Remove();
         _tug = PushbackTug.Spawn(context);
@@ -105,11 +115,13 @@ public sealed class PushbackService : GroundService
         Steering = steering;
         if (_follower is not null)
         {
+            _manualForward = _follower.Forward;
             _follower = null;
+            _next = null;
             Progress = null;
-            if (_phase == Phase.Pushing)
+            if (_phase is Phase.Pushing or Phase.ChangingDirection)
             {
-                SetStatus(ServiceStatus.Active, "Pushing back, manual steering");
+                Enter(Phase.Pushing, ServiceStatus.Active, ManualDetail);
             }
         }
     }
@@ -170,6 +182,7 @@ public sealed class PushbackService : GroundService
                 break;
 
             case Phase.Pushing:
+            case Phase.ChangingDirection:
                 if (state.ParkingBrakeSet)
                 {
                     // Brake set while moving: the tug stops immediately.
@@ -183,29 +196,45 @@ public sealed class PushbackService : GroundService
 
                 if (_stopRequested)
                 {
+                    _next = null;
                     Enter(Phase.Stopping, ServiceStatus.Active, "Stopping");
                     Say(CrewPhrases.PushStopping);
+                    break;
+                }
+
+                if (_phase == Phase.ChangingDirection)
+                {
+                    ChangeDirection(context, config, elapsed);
                     break;
                 }
 
                 if (_follower is { } follower)
                 {
                     var remaining = follower.Update(state);
-                    Progress = follower.Progress;
+                    Progress = OverallProgress(follower);
                     if (remaining <= PathFollower.ArrivalMeters)
                     {
+                        if (follower.Leg < follower.Option.Legs.Count - 1)
+                        {
+                            _next = new PathFollower(follower.Option, follower.Leg + 1);
+                            _stoppedFor = TimeSpan.Zero;
+                            Enter(Phase.ChangingDirection, ServiceStatus.Active, _next.Forward ? "Stopping, then towing forwards" : "Stopping, then pushing back");
+                            Say(CrewPhrases.PushStopping);
+                            break;
+                        }
+
                         Enter(Phase.Stopping, ServiceStatus.Active, $"Pushback {follower.Option.Label} done, stopping");
                         Say(CrewPhrases.PushStopping);
                         break;
                     }
 
-                    // Slow down so the tug can stop at the end of the path.
+                    // Slow down so the tug can stop at the end of the leg.
                     var speed = Math.Min(config.SpeedMps, Math.Max(PathFollower.CreepSpeedMps, Math.Sqrt(2 * config.AccelerationMps2 * remaining)));
-                    Drive(context, config, -speed, dt, follower.SteeringDeg(state, config));
+                    Drive(context, config, follower.Forward ? speed : -speed, dt, follower.SteeringDeg(state, config));
                     break;
                 }
 
-                Drive(context, config, -config.SpeedMps, dt);
+                Drive(context, config, _manualForward ? config.SpeedMps : -config.SpeedMps, dt);
                 break;
 
             case Phase.Stopping:
@@ -278,12 +307,58 @@ public sealed class PushbackService : GroundService
         SpeedMps = 0;
         _phase = Phase.None;
         _follower = null;
+        _next = null;
         Progress = null;
         LowerNoseWheel(context);
         _lowering = false;
         _holdingStill = false;
         ReleaseTug(context);
         base.Abort(context);
+    }
+
+    private string ManualDetail => _manualForward ? "Towing forwards, manual steering" : "Pushing back, manual steering";
+
+    /// <summary>Share of the whole planned path (all legs) covered so far.</summary>
+    private static double OverallProgress(PathFollower follower)
+    {
+        var legs = follower.Option.Legs;
+        var done = legs.Take(follower.Leg).Sum(l => PushbackOption.PathLength(l.Path));
+        var total = follower.Option.LengthMeters;
+        return total > 0 ? Math.Clamp((done + follower.TravelledMeters) / total, 0, 1) : 1;
+    }
+
+    /// <summary>
+    /// Between two legs: comes to a stop on the old leg, stands still for <see cref="DirectionChangeSeconds"/> while the
+    /// nose wheel turns for the new leg, then goes on in the new direction.
+    /// </summary>
+    private void ChangeDirection(ServiceContext context, PushbackConfig config, TimeSpan elapsed)
+    {
+        var dt = elapsed.TotalSeconds;
+        var state = context.State;
+        if (_follower is null || _next is null)
+        {
+            _next = null;
+            Enter(Phase.Pushing, ServiceStatus.Active, ManualDetail);
+            return;
+        }
+
+        if (Math.Abs(SpeedMps) >= 0.01)
+        {
+            _follower.Update(state);
+            Drive(context, config, 0, dt, _follower.SteeringDeg(state, config));
+            return;
+        }
+
+        _stoppedFor += elapsed;
+        _next.Update(state);
+        Drive(context, config, 0, dt, _next.SteeringDeg(state, config));
+        if (_stoppedFor.TotalSeconds >= DirectionChangeSeconds)
+        {
+            _follower = _next;
+            _next = null;
+            var label = _follower.Option.Label;
+            Enter(Phase.Pushing, ServiceStatus.Active, _follower.Forward ? $"Towing forwards, {label}" : $"Pushing back, {label}");
+        }
     }
 
     /// <summary>The towbarless tug lifts the nose wheel off the ground, so it does not scrub while the tug turns it.</summary>
@@ -341,13 +416,14 @@ public sealed class PushbackService : GroundService
     {
         SpeedMps = PushbackKinematics.Approach(SpeedMps, targetSpeedMps, config.AccelerationMps2 * dt);
 
-        // Pushing backwards: tail left means the nose wheel turns left (negative angle).
-        var targetSteering = steeringDeg ?? Steering switch
+        // Pushing backwards, tail left means the nose wheel turns left (negative angle); towing forwards, it turns right.
+        var manual = Steering switch
         {
             PushbackSteering.TailLeft => -config.MaxSteeringDeg,
             PushbackSteering.TailRight => config.MaxSteeringDeg,
             _ => 0,
         };
+        var targetSteering = steeringDeg ?? (_manualForward ? -manual : manual);
         targetSteering = Math.Clamp(targetSteering, -config.MaxSteeringDeg, config.MaxSteeringDeg);
         SteeringDeg = PushbackKinematics.Approach(SteeringDeg, targetSteering, config.SteeringRateDegPerSecond * dt);
 
@@ -503,9 +579,9 @@ public sealed class PushbackTug
 }
 
 /// <summary>
-/// Pure pursuit for a reversing aircraft: steers the reference point towards a point a little further back
-/// along the planned path. Kinematically the reference point behaves like the rear axle of a bicycle model,
-/// so this stays stable in reverse.
+/// Pure pursuit along one leg of a planned pushback: steers the reference point towards a point a little further
+/// along the leg, backwards when pushed and forwards when towed. Kinematically the reference point behaves like the
+/// rear axle of a bicycle model, so this stays stable in reverse.
 /// </summary>
 internal sealed class PathFollower
 {
@@ -513,29 +589,40 @@ internal sealed class PathFollower
     public const double CreepSpeedMps = 0.3;
     private const double SearchWindowMeters = 20;
 
+    private readonly IReadOnlyList<Vec2> _path;
     private readonly double[] _distanceAt;
     private int _index;
 
-    public PathFollower(PushbackOption option)
+    public PathFollower(PushbackOption option, int leg)
     {
         Option = option;
-        _distanceAt = new double[option.Path.Count];
-        for (var i = 1; i < option.Path.Count; i++)
+        Leg = leg;
+        var current = option.Legs[leg];
+        _path = current.Path;
+        Forward = current.Forward;
+        _distanceAt = new double[_path.Count];
+        for (var i = 1; i < _path.Count; i++)
         {
-            _distanceAt[i] = _distanceAt[i - 1] + (option.Path[i] - option.Path[i - 1]).Length;
+            _distanceAt[i] = _distanceAt[i - 1] + (_path[i] - _path[i - 1]).Length;
         }
     }
 
     public PushbackOption Option { get; }
+
+    /// <summary>Index of the leg in <see cref="PushbackOption.Legs"/>.</summary>
+    public int Leg { get; }
+
+    /// <summary>True when this leg is towed forwards.</summary>
+    public bool Forward { get; }
     public double TotalMeters => _distanceAt[^1];
     public double TravelledMeters { get; private set; }
     public double Progress => TotalMeters > 0 ? Math.Clamp(TravelledMeters / TotalMeters, 0, 1) : 1;
 
-    /// <summary>Moves on to the path point nearest the aircraft. Returns the distance left.</summary>
+    /// <summary>Moves on to the path point nearest the aircraft. Returns the distance left on this leg.</summary>
     public double Update(AircraftState state)
     {
         var position = Local(state);
-        var path = Option.Path;
+        var path = _path;
         var best = _index;
         var bestDistance = double.MaxValue;
         for (var i = _index; i < path.Count && _distanceAt[i] - _distanceAt[_index] <= SearchWindowMeters; i++)
@@ -571,7 +658,7 @@ internal sealed class PathFollower
         var lookahead = Math.Max(6, 0.6 * config.WheelbaseMeters);
         var target = PointAt(TravelledMeters + lookahead);
 
-        var motion = -Vec2.FromHeading(state.HeadingTrueDeg); // reversing
+        var motion = Forward ? Vec2.FromHeading(state.HeadingTrueDeg) : -Vec2.FromHeading(state.HeadingTrueDeg);
         var toTarget = target - position;
         var squared = Vec2.Dot(toTarget, toTarget);
         if (squared < 1e-6)
@@ -582,7 +669,8 @@ internal sealed class PathFollower
         // Curvature to the right of the direction of motion; in reverse the nose wheel turns the other way.
         var lateralRight = -Vec2.Cross(motion, toTarget);
         var curvature = 2 * lateralRight / squared;
-        return -Units.RadiansToDegrees(Math.Atan(config.WheelbaseMeters * curvature));
+        var angle = Units.RadiansToDegrees(Math.Atan(config.WheelbaseMeters * curvature));
+        return Forward ? angle : -angle;
     }
 
     private Vec2 Local(AircraftState state) =>
@@ -590,7 +678,7 @@ internal sealed class PathFollower
 
     private Vec2 PointAt(double distance)
     {
-        var path = Option.Path;
+        var path = _path;
         if (distance >= TotalMeters)
         {
             var end = path[^1];

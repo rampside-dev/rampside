@@ -34,6 +34,8 @@ public sealed class StandMonitor : ISimConnectExtension
     private uint _userObjectId;
     private Position? _position;
     private DateTime _lastSearch = DateTime.MinValue;
+    private readonly List<(string Ident, double Distance)> _airportCandidates = new();
+    private bool _airportListPending;
     private string? _pendingAirport;
     private double _pendingAirportLat;
     private double _pendingAirportLon;
@@ -119,6 +121,8 @@ public sealed class StandMonitor : ISimConnectExtension
         _sc = null;
         _stand = null;
         _pendingAirport = null;
+        _airportListPending = false;
+        _airportCandidates.Clear();
         _position = null;
         _airport = null;
         lock (_gate) _published = null;
@@ -149,13 +153,23 @@ public sealed class StandMonitor : ISimConnectExtension
             return;
         }
 
-        if (_pendingAirport is null && DateTime.UtcNow - _lastSearch >= SearchInterval)
+        // A list that never completes (e.g. after a SimConnect exception) does not block the search for long.
+        var listStuck = _airportListPending && DateTime.UtcNow - _lastSearch >= 3 * SearchInterval;
+        if (_pendingAirport is null && (!_airportListPending || listStuck) && DateTime.UtcNow - _lastSearch >= SearchInterval)
         {
             _lastSearch = DateTime.UtcNow;
+            _airportListPending = true;
+            _airportCandidates.Clear();
             sc.RequestFacilitiesList(SIMCONNECT_FACILITY_LIST_TYPE.AIRPORT, Request.Airports);
         }
     }
 
+    /// <summary>
+    /// The airport list arrives in several messages (dwEntryNumber of dwOutOf); the nearest airport is chosen once the
+    /// last one is in. Choosing per message picked whichever later message had any airport within range: at Frankfurt
+    /// EDDF (1.7 km) came in message 45 of 76 and a heliport "SFDF8" (6.2 km) in message 75, so EDDF's stands were
+    /// loaded under the heliport's ident and its jetways could not be read.
+    /// </summary>
     private void OnAirportList(SimConnect sc, SIMCONNECT_RECV_AIRPORT_LIST data)
     {
         if (data.dwRequestID != (uint)Request.Airports || _position is not { } position)
@@ -163,16 +177,27 @@ public sealed class StandMonitor : ISimConnectExtension
             return;
         }
 
-        var nearest = data.rgData
+        if (data.dwEntryNumber == 0)
+        {
+            _airportCandidates.Clear();
+        }
+
+        _airportCandidates.AddRange(data.rgData
             .Cast<SIMCONNECT_DATA_FACILITY_AIRPORT>()
             .Select(a => (a.Ident, Distance: StandLocator.DistanceMeters(position.Latitude, position.Longitude, a.Latitude, a.Longitude)))
-            .Where(a => a.Distance <= MaxAirportDistanceMeters)
-            .OrderBy(a => a.Distance)
-            .FirstOrDefault();
+            .Where(a => !string.IsNullOrEmpty(a.Ident) && a.Distance <= MaxAirportDistanceMeters));
 
+        if (data.dwEntryNumber + 1 < data.dwOutOf)
+        {
+            return; // more messages to come
+        }
+
+        _airportListPending = false;
+        var nearest = _airportCandidates.OrderBy(a => a.Distance).FirstOrDefault();
+        _airportCandidates.Clear();
         if (string.IsNullOrEmpty(nearest.Ident))
         {
-            return; // no airport nearby in this batch
+            return; // no airport nearby
         }
 
         _airport = nearest.Ident;
