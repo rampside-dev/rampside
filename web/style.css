@@ -628,3 +628,26 @@ p code, dd code {
   html { scroll-behavior: auto; }
   .taxi, .tunnel, .gear, .hose { animation: none; }
 }
+
+/* ---------- Download and GitHub links ---------- */
+
+.icon-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+.btn-icon { gap: 10px; }
+.btn-icon svg { width: 20px; height: 20px; flex: none; }
+
+.site-header nav .nav-source.nav-github {
+  display: inline-flex;
+  padding: 6px;
+  border: 0;
+  color: var(--concrete);
+}
+.site-header nav .nav-source.nav-github:hover { background: none; color: var(--hull); }
+.nav-github svg { width: 26px; height: 26px; }
+
+.install-download { display: grid; gap: 10px; justify-items: start; margin-top: 4px; }
+.install-download small { color: var(--concrete); font-size: 0.9rem; }
+
+.footer-github { display: inline-flex; padding: 4px; color: var(--concrete); }
+.footer-github:hover { color: var(--hull); }
+.footer-github svg { width: 22px; height: 22px; }
