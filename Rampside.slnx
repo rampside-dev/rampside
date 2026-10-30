@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/Rampside.Core/Rampside.Core.csproj" />
     <Project Path="src/Rampside.MsfsBridge/Rampside.MsfsBridge.csproj" />
+    <Project Path="src/Rampside.Hosting/Rampside.Hosting.csproj" />
     <Project Path="src/Rampside.App/Rampside.App.csproj" />
   </Folder>
   <Folder Name="/tests/">

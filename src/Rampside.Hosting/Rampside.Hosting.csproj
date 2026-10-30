@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Runs Rampside: connects the simulator, picks profile and adapter, ticks the services. Shared by the console and the desktop UI.</Description>
+    <RootNamespace>Rampside.Hosting</RootNamespace>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rampside.Core\Rampside.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(RampsideHasMsfsSdk)' == 'true'">
+    <ProjectReference Include="..\Rampside.MsfsBridge\Rampside.MsfsBridge.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(RampsideHasMsfsSdk)' == 'true'">
+    <DefineConstants>$(DefineConstants);RAMPSIDE_SIMCONNECT</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\profiles\*.json" LinkBase="profiles" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

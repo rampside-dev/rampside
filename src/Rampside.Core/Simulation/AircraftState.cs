@@ -24,6 +24,9 @@ public sealed record AircraftState
     public bool EnginesRunning { get; init; }
     public IReadOnlyList<FuelTankState> FuelTanks { get; init; } = Array.Empty<FuelTankState>();
 
+    /// <summary>Stand the aircraft is parked on, with its jetway. Null when unknown or not on a stand.</summary>
+    public StandInfo? Stand { get; init; }
+
     public double TotalFuelKg => FuelTanks.Sum(t => t.QuantityKg);
     public double FuelCapacityKg => FuelTanks.Sum(t => t.CapacityKg);
     public bool IsStationary => OnGround && GroundSpeedKnots < 1.0;
