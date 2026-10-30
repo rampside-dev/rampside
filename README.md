@@ -5,7 +5,7 @@
 Open-source ground services for Microsoft Flight Simulator 2024: pushback, boarding and deboarding,
 refueling, jetways, stairs and ground power.
 
-Rampside is an independent community project. It is not affiliated with FSDreamTeam/GSX, Microsoft or Asobo.
+Rampside is an independent community project. It is not affiliated with Microsoft, Asobo or PMDG.
 
 > **Status: early prototype (0.1).** The service logic is complete and tested against a fake simulator.
 > The SimConnect bridge has not been tested in MSFS yet, and there is no in-sim UI: you control Rampside

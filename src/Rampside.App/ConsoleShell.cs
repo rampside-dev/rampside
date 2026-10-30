@@ -275,7 +275,7 @@ internal sealed class ConsoleShell
         return string.Join(Environment.NewLine, lines);
     }
 
-    /// <summary>Like GSX: offer the known pushbacks first; without any the tug is steered manually.</summary>
+    /// <summary>Offers the known pushbacks first; without any the tug is steered manually.</summary>
     private static CommandResult OfferPushback(GroundServiceOrchestrator o)
     {
         var options = o.PushbackOptions();

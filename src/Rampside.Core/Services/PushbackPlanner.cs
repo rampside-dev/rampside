@@ -65,7 +65,7 @@ public sealed record PushbackLeg(IReadOnlyList<Vec2> Path, bool Forward);
 /// <param name="Name">Name given by the source, e.g. a GSX profile's "Facing South - E1"; null for planned options.</param>
 /// <param name="Source">Where the option comes from, e.g. "GSX profile eddm-simwings"; null when Rampside planned it.</param>
 /// <param name="Then">
-/// Stretches after <paramref name="Path"/>, each starting where the one before ends, e.g. GSX's push and pull:
+/// Stretches after <paramref name="Path"/>, each starting where the one before ends, e.g. a push and pull from a GSX profile:
 /// pushed off the stand, then towed forwards onto the taxiway. The tug stops between them. Null = push only.
 /// </param>
 public sealed record PushbackOption(
@@ -104,7 +104,7 @@ public sealed record PushbackOption(
 }
 
 /// <summary>
-/// GSX-style automatic pushback targets: follow the line behind the tail to the first taxi line it crosses,
+/// Automatic pushback targets: follow the line behind the tail to the first taxi line it crosses,
 /// then turn onto that line in either direction. Each direction becomes one option, named by the compass
 /// direction the nose points at the end ("facing North-West").
 /// </summary>

@@ -249,7 +249,7 @@ ahead of the nose gear, and it faces the aircraft. It turns with the nose wheel,
 the nose wheel is steered to. `noseGearForwardMeters` is the nose wheel contact point from the aircraft's
 `flight_model.cfg` (`point.0` x, in feet there); without it Rampside assumes 80 % of `wheelbaseMeters`.
 
-Like a real towbarless tug (and GSX), the tug lifts the nose wheel off the ground once connected, so it does not
+Like a real towbarless tug, the tug lifts the nose wheel off the ground once connected, so it does not
 scrub while the pushback steers: the bridge writes `PLANE PITCH DEGREES` every sim frame, raising the nose by
 `noseLiftDeg` over `noseLiftSeconds` along a sin² curve, holds it during the push and sets it down the same way
 (lifting makes the aircraft creep forwards despite the parking brake, so while the nose is up or coming down and the
@@ -257,12 +257,12 @@ aircraft should stand, Rampside writes zero ground motion)
 before the tug disconnects (also on abort), then hands the pitch back to the sim. The aircraft's own steering is not
 used: the sim cannot be given a nose wheel angle (`GEAR STEER ANGLE` and `STEER INPUT CONTROL` are read-only,
 `STEERING_SET` needs hydraulic pressure), and the PMDG's nose wheel animation follows that angle only.
-Measured in MSFS 2024 with the PMDG 737: the nose wheel leaves the ground at about 1.7° nose up; GSX lifts about 2.4°.
+Measured in MSFS 2024 with the PMDG 737: the nose wheel leaves the ground at about 1.7° nose up.
 The default `noseLiftDeg` of 1.8° lifts it just clear (2.0° looked too steep).
 
 ### Planned pushback ("facing North-West")
 
-Like GSX without a custom profile, but named by compass direction instead of "nose left / tail right":
+Without a pushback target for the stand, Rampside plans one on the taxiway graph, named by compass direction instead of "nose left / tail right":
 
 1. `StandMonitor` loads the airport's taxiway graph with the parking spots (`TAXI_POINT`, `TAXI_PATH`,
    `TAXI_NAME` facility data) and hands it on in `StandInfo.Taxiways`. It is the scenery's own graph, so the
@@ -377,7 +377,7 @@ Without a flight plan the masses come from `passengers.weightKg` and `bagWeightK
 | **1: in the sim** | Test the bridge in MSFS 2024; confirm event names, yaw sign and payload indexes; profiles for default airliners; config file for the app |
 | **2: in-sim UI** | MSFS 2024 EFB app or toolbar panel; local API (WebSocket) between UI and the Rampside service; tray app instead of console |
 | **3: the ramp** | Airport data from SimConnect facilities (parking spots, jetways); own vehicles and crew as SimObjects placed at the right door positions; pushback with a planned path |
-| **4: depth** | Study-level aircraft (L-vars, input events, possibly a small WASM helper); turnaround timeline (GSX-style full flow); sounds; remember load sheet across sessions |
+| **4: depth** | Study-level aircraft (L-vars, input events, possibly a small WASM helper); turnaround timeline (the full flow from arrival to departure); sounds; remember load sheet across sessions |
 
 ## Open questions and risks
 

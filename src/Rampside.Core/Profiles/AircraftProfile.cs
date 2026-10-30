@@ -143,7 +143,7 @@ public sealed class PushbackConfig
 
     /// <summary>
     /// How far the towbarless tug pitches the aircraft nose up to lift the nose wheel off the ground, so it does not
-    /// scrub while the tug turns it; 0 = no lift. PMDG 737: the nose wheel leaves the ground at about 1.7°, GSX uses about 2.4°.
+    /// scrub while the tug turns it; 0 = no lift. PMDG 737: the nose wheel leaves the ground at about 1.7°.
     /// The default lifts the wheel just clear (2.0° looked too steep in the sim).
     /// </summary>
     public double NoseLiftDeg { get; init; } = 1.8;
