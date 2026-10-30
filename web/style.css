@@ -636,6 +636,12 @@ p code, dd code {
 .btn-icon { gap: 10px; }
 .btn-icon svg { width: 20px; height: 20px; flex: none; }
 
+/* Overpass sits high in its line box: the middle of the capitals is about 0.125em above the box's middle,
+   so icons centred on the box look too low. */
+.btn-icon svg,
+.nav-github svg,
+.footer-github svg { translate: 0 -0.125em; }
+
 .site-header nav .nav-source.nav-github {
   display: inline-flex;
   padding: 6px;
