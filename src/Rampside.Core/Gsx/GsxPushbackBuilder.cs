@@ -31,7 +31,7 @@ public static partial class GsxPushbackBuilder
     public static IReadOnlyList<PushbackOption> Build(AircraftState state, GsxStandMatch match, ICollection<string>? notes = null)
     {
         var options = new List<PushbackOption>();
-        var stop = match.Stand.StopPosition;
+        var stop = match.StopPosition;
         if (StandLocator.DistanceMeters(state.Latitude, state.Longitude, stop.Latitude, stop.Longitude) > MaxStandDistanceMeters)
         {
             notes?.Add($"aircraft is more than {MaxStandDistanceMeters:F0} m from the stand's stop position");

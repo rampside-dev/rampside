@@ -5,18 +5,40 @@ namespace Rampside.Core.Gsx;
 /// <summary>A GSX stand found for the stand the aircraft is parked on.</summary>
 /// <param name="ProfileName">File name of the profile without extension, e.g. "eddm-simwings".</param>
 /// <param name="DistanceMeters">Distance between the MSFS parking spot and the GSX stand; null when matched by name only.</param>
-public sealed record GsxStandMatch(string ProfileName, GsxStand Stand, double? DistanceMeters);
+/// <param name="StopOffset">The profile script's stop offset for the aircraft; null without script, function or known aircraft.</param>
+public sealed record GsxStandMatch(string ProfileName, GsxStand Stand, double? DistanceMeters, GsxStopOffset? StopOffset = null)
+{
+    /// <summary>
+    /// Where this aircraft stops: the profile's stop position, moved back along the stand's heading by
+    /// <see cref="StopOffset"/>. That positive offsets mean "stop short" is read off the scripts (the bigger the aircraft,
+    /// the bigger the value, roughly its extra length ahead of the reference point); it is not yet checked in the sim.
+    /// </summary>
+    public GsxPose StopPosition => StopOffset is { Meters: not 0 } offset && Stand.StopPosition.HeadingDeg is { } heading
+        ? Moved(Stand.StopPosition, heading, -offset.Meters)
+        : Stand.StopPosition;
+
+    private static GsxPose Moved(GsxPose pose, double heading, double forwardM)
+    {
+        var (lat, lon) = Geo.Offset(pose.Latitude, pose.Longitude, heading, forwardM, 0);
+        return pose with { Latitude = lat, Longitude = lon };
+    }
+}
 
 /// <summary>Looks up the GSX stand for an MSFS parking spot.</summary>
 public interface IGsxStandSource
 {
-    /// <summary>The GSX stand for <paramref name="spot"/> (or, without position, for <paramref name="standName"/>), or null.</summary>
-    GsxStandMatch? Find(string airportIcao, ParkingSpot? spot, string standName);
+    /// <summary>
+    /// The GSX stand for <paramref name="spot"/> (or, without position, for <paramref name="standName"/>), or null.
+    /// With <paramref name="aircraft"/>, the match carries the profile script's stop offset for it.
+    /// </summary>
+    GsxStandMatch? Find(string airportIcao, ParkingSpot? spot, string standName, GsxAircraft? aircraft = null);
 }
 
 /// <summary>
 /// The user's installed GSX Pro airport profiles. Profiles are read from the user's own GSX folder at run time
 /// (they belong to their authors and are never shipped with Rampside), parsed once and re-read when the file changes.
+/// A profile's script (same name, .py) is read for the per-aircraft stop positions, see <see cref="GsxStopOffsets"/>;
+/// the separate *_handler.py scripts (operators, vehicle choice) are not.
 /// </summary>
 public sealed class GsxProfileLibrary : IGsxStandSource
 {
@@ -25,6 +47,7 @@ public sealed class GsxProfileLibrary : IGsxStandSource
 
     private readonly object _gate = new();
     private readonly Dictionary<string, (DateTime Written, GsxProfile Profile)> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (DateTime Written, GsxStopOffsets Offsets)> _scripts = new(StringComparer.OrdinalIgnoreCase);
 
     public GsxProfileLibrary(string folder)
     {
@@ -62,9 +85,10 @@ public sealed class GsxProfileLibrary : IGsxStandSource
         }
     }
 
-    public GsxStandMatch? Find(string airportIcao, ParkingSpot? spot, string standName)
+    public GsxStandMatch? Find(string airportIcao, ParkingSpot? spot, string standName, GsxAircraft? aircraft = null)
     {
         GsxStandMatch? best = null;
+        string? bestPath = null;
         foreach (var path in ProfileFiles(airportIcao))
         {
             if (Load(path) is not { } profile || Match(profile, spot, standName) is not { } match)
@@ -76,10 +100,23 @@ public sealed class GsxProfileLibrary : IGsxStandSource
             if (best is null || (match.DistanceMeters ?? double.MaxValue) < (best.DistanceMeters ?? double.MaxValue))
             {
                 best = match;
+                bestPath = path;
             }
         }
 
-        return best;
+        if (best is null || aircraft is null || LoadScript(Path.ChangeExtension(bestPath!, ".py")) is not { } script)
+        {
+            return best;
+        }
+
+        var problems = new List<string>();
+        var offset = script.For(best.Stand.Section, aircraft, problems);
+        foreach (var problem in problems)
+        {
+            Message?.Invoke(this, $"GSX script {script.Name}: {problem}");
+        }
+
+        return best with { StopOffset = offset };
     }
 
     /// <summary>
@@ -121,6 +158,46 @@ public sealed class GsxProfileLibrary : IGsxStandSource
     private static bool IsProfileFor(string fileName, string airportIcao) =>
         fileName.StartsWith(airportIcao, StringComparison.OrdinalIgnoreCase)
         && (fileName.Length == airportIcao.Length || !char.IsLetterOrDigit(fileName[airportIcao.Length]));
+
+    /// <summary>The profile's script, or null when there is none.</summary>
+    private GsxStopOffsets? LoadScript(string path)
+    {
+        try
+        {
+            if (!File.Exists(path))
+            {
+                return null;
+            }
+
+            var written = File.GetLastWriteTimeUtc(path);
+            lock (_gate)
+            {
+                if (_scripts.TryGetValue(path, out var cached) && cached.Written == written)
+                {
+                    return cached.Offsets;
+                }
+            }
+
+            var problems = new List<string>();
+            var script = GsxStopOffsets.Parse(Path.GetFileNameWithoutExtension(path), File.ReadAllText(path), problems);
+            foreach (var problem in problems.Take(5))
+            {
+                Message?.Invoke(this, $"GSX script {script.Name}: skipped {problem}");
+            }
+
+            lock (_gate)
+            {
+                _scripts[path] = (written, script);
+            }
+
+            return script;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Message?.Invoke(this, $"GSX script {path} could not be read: {ex.Message}");
+            return null;
+        }
+    }
 
     private GsxProfile? Load(string path)
     {

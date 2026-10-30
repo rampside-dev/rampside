@@ -282,7 +282,7 @@ The profiles belong to their authors: Rampside reads them from the user's GSX fo
 
 1. `GsxProfileLibrary` lists the airport's `.ini` files and parses them (`GsxProfile`, cached until the file changes).
    The `pushbackaddpos` value is a Python literal, read by the small `PythonLiteral` reader; nothing is executed.
-   The profile's `.py` companion (per-type stop offsets, handler logic) is not read.
+   The profile's `.py` script is read for the stop positions (see below); `*_handler.py` scripts are not.
 2. The stand is matched by position: the GSX section whose `this_parking_pos` lies within 5 m of the MSFS parking
    spot. Section names alone are ambiguous ("gate a 317" can be A317 or 317A). Older sections without
    `this_parking_pos` fall back to the name, but only if their stop position lies on the spot.
@@ -301,7 +301,42 @@ The orchestrator logs the match once per stand, e.g.
 `GSX profile eddm-simwings: Gate 121 is [gate 121] (0.3 m from the MSFS spot), 4 of 4 pushback targets usable`.
 In the console `push` lists the options numbered (`push 2` picks one), `taxi` shows the GSX stand.
 
-Not yet: stop positions per aircraft type from the profile's `.py` file, and GSX's start-engines and wingwalker hints.
+### Stop positions per aircraft from GSX scripts
+
+Next to many profiles lies a script with the same name (`eddm-simwings.py`). Its `parkings` table names, per stand,
+a function marked `@AlternativeStopPositions` that GSX calls with the aircraft and that returns a `Distance`,
+mostly a lookup in tables of GSX aircraft ids (`737: {800: 0, 900: 2}`, `380: 16.2`):
+
+```python
+parkings = {
+    GATE_A : {
+        None : (Pier1Names, customOffset14),   # default for the other GATE_A stands
+        113 : (Pier1Names, customOffset14b),   # [gate a 113] in the .ini
+    },
+}
+```
+
+1. `PyModule` runs the script with a small interpreter for the part of Python 2 the scripts use (functions,
+   decorators, if/elif/else, try/except, dicts and tuples, `%` formatting, `44L`). There are no imports, loops,
+   classes or file access, and every run has a step budget and a call depth limit, so a script cannot reach the system
+   or hang Rampside. A statement it cannot parse or run is skipped and logged; the rest still loads.
+   Over the 27 scripts installed here (up to 5800 lines) it loads each in under 100 ms without problems.
+2. `GsxStopOffsets` maps the table to the `.ini` section names (`GATE_A`, 113 → `gate a 113`; `N_PARKING` → `n parking`)
+   and calls the function with `aircraftData` (`idMajor`, `idMinor`, `icaoTypeDesignator`, `aircraftGroup` = "ARC-C").
+   A function that fails (e.g. `Distance.fromMeters(None)` when its table has no entry for the aircraft) gives no offset,
+   as in GSX.
+3. `GsxAircraft` gets GSX's id from the ICAO type (B738 → 737/800, B789 → 787/9, A388 → 380), read off the scripts' tables.
+   A profile can set it with `"gsx": { "idMajor": 737, "idMinor": 800 }` where the type is not in the table.
+4. `GsxStandMatch.StopPosition` is the profile's stop position moved back along the stand heading by the offset;
+   the pushback distance check and the console's `taxi` report use it, and the orchestrator logs it
+   (`stop position 16.2 m short for A388 (GSX 380/0) (customOffset14)`).
+
+**Not checked in the sim yet:** that a positive offset means "stop short". It is read off the data: the bigger the
+aircraft, the bigger the value (A320 and 737-800 around 0, widebodies 8–14 m, A380 about 16 m), roughly its extra
+length from the nose to the reference point. Also unverified: GSX's ids for the 747-8 (8 or 800 appear in scripts),
+the A320neo family (taken as the ceo ids) and the 737 MAX (taken as 737/700–900).
+
+Not yet: GSX's start-engines and wingwalker hints.
 
 ## Aircraft profiles
 

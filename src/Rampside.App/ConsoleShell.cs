@@ -242,7 +242,8 @@ internal sealed class ConsoleShell
             $"Options: {(o.PushbackOptions() is { Count: > 0 } options ? string.Join(", ", options.Select(x => $"{x.Label} ({x.LengthMeters:F0} m)")) : "none")}",
             o.GsxStand is { } gsx
                 ? $"GSX: [{gsx.Stand.Section}] in {gsx.ProfileName}, {gsx.Stand.PushbackTargets.Count} targets, aircraft "
-                    + $"{StandLocator.DistanceMeters(state.Latitude, state.Longitude, gsx.Stand.StopPosition.Latitude, gsx.Stand.StopPosition.Longitude):F1} m from its stop position"
+                    + $"{StandLocator.DistanceMeters(state.Latitude, state.Longitude, gsx.StopPosition.Latitude, gsx.StopPosition.Longitude):F1} m from its stop position"
+                    + (gsx.StopOffset is { } offset ? $" ({offset.Meters:F1} m short of the profile's for {offset.Aircraft}, {offset.Function})" : string.Empty)
                 : "GSX: no profile stand",
             "Paths within 120 m (forward/right of the aircraft in metres, negative forward = behind):",
         };

@@ -307,6 +307,6 @@ public class GsxProfileTests
 
     private sealed class FixedSource(GsxStandMatch match) : IGsxStandSource
     {
-        public GsxStandMatch? Find(string airportIcao, ParkingSpot? spot, string standName) => match;
+        public GsxStandMatch? Find(string airportIcao, ParkingSpot? spot, string standName, GsxAircraft? aircraft = null) => match;
     }
 }

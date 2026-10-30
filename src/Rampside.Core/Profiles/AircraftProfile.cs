@@ -53,6 +53,19 @@ public sealed class AircraftProfile
 
     /// <summary>Wheel chocks; only used where a procedure handles them (PMDG CDU).</summary>
     public ConnectableConfig Chocks { get; init; } = new() { ConnectSeconds = 10, DisconnectSeconds = 10 };
+
+    /// <summary>How GSX airport scripts see the aircraft; only needed where the ICAO type is not enough.</summary>
+    public GsxConfig Gsx { get; init; } = new();
+}
+
+/// <summary>
+/// GSX's aircraft id, used by the stop position tables in GSX airport scripts (737/800 for a 737-800).
+/// Null = from the ICAO type, see <see cref="Gsx.GsxAircraft"/>.
+/// </summary>
+public sealed class GsxConfig
+{
+    public int? IdMajor { get; init; }
+    public int? IdMinor { get; init; }
 }
 
 public sealed class PassengerConfig

@@ -801,13 +801,17 @@ public sealed class GroundServiceOrchestrator
         }
 
         var spot = State.AirportParkings.FirstOrDefault(p => p.Index == stand.ParkingIndex);
-        GsxStand = _gsxStands.Find(stand.AirportIcao, spot, stand.Name);
+        var aircraft = GsxAircraft.From(FlightPlanCheck.AircraftTypes(State, Profile), Profile.Gsx.IdMajor, Profile.Gsx.IdMinor);
+        GsxStand = _gsxStands.Find(stand.AirportIcao, spot, stand.Name, aircraft);
         if (GsxStand is { } match)
         {
             var notes = new List<string>();
             var usable = GsxPushbackBuilder.Build(State, match, notes);
             var where = match.DistanceMeters is { } distance ? $"{distance:F1} m from the MSFS spot" : "matched by name";
-            Message?.Invoke(this, $"GSX profile {match.ProfileName}: {stand.Name} is [{match.Stand.Section}] ({where}), "
+            var stop = match.StopOffset is { } offset
+                ? $", stop position {offset.Meters:F1} m short for {offset.Aircraft} ({offset.Function})"
+                : aircraft is null ? ", aircraft unknown to GSX scripts" : string.Empty;
+            Message?.Invoke(this, $"GSX profile {match.ProfileName}: {stand.Name} is [{match.Stand.Section}] ({where}){stop}, "
                 + $"{usable.Count} of {match.Stand.PushbackTargets.Count} pushback targets usable"
                 + (notes.Count > 0 ? $"; {string.Join("; ", notes)}" : string.Empty));
         }
