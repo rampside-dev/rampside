@@ -1,0 +1,22 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Version>0.1.0</Version>
+    <Authors>Rampside contributors</Authors>
+    <Product>Rampside</Product>
+  </PropertyGroup>
+
+  <!--
+    MSFS SDK lookup. The SimConnect DLLs ship with the MSFS SDK and are not part of this repository.
+    Override with: dotnet build -p:MsfsSdkRoot="C:\MSFS 2024 SDK"
+  -->
+  <PropertyGroup>
+    <MsfsSdkRoot Condition="'$(MsfsSdkRoot)' == '' and '$(MSFS2024_SDK)' != ''">$(MSFS2024_SDK)</MsfsSdkRoot>
+    <MsfsSdkRoot Condition="'$(MsfsSdkRoot)' == '' and '$(MSFS_SDK)' != ''">$(MSFS_SDK)</MsfsSdkRoot>
+    <MsfsSimConnectManagedDll>$(MsfsSdkRoot)\SimConnect SDK\lib\managed\Microsoft.FlightSimulator.SimConnect.dll</MsfsSimConnectManagedDll>
+    <MsfsSimConnectNativeDll>$(MsfsSdkRoot)\SimConnect SDK\lib\SimConnect.dll</MsfsSimConnectNativeDll>
+    <RampsideHasMsfsSdk Condition="'$(MsfsSdkRoot)' != '' and Exists('$(MsfsSimConnectManagedDll)')">true</RampsideHasMsfsSdk>
+  </PropertyGroup>
+</Project>

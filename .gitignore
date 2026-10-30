@@ -1,0 +1,12 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+*.suo
+TestResults/
+*.log
+
+# SimConnect binaries come from the MSFS SDK, never commit them
+SimConnect.dll
+Microsoft.FlightSimulator.SimConnect.dll

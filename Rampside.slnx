@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Rampside.Core/Rampside.Core.csproj" />
+    <Project Path="src/Rampside.MsfsBridge/Rampside.MsfsBridge.csproj" />
+    <Project Path="src/Rampside.App/Rampside.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Rampside.Core.Tests/Rampside.Core.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,43 @@
+// Template for a narrow-body profile (A320-sized). Copy it, change "id", "name" and "match".
+// Also used by the fake simulator ("Rampside Test Aircraft").
+//
+// Payload station indexes: SimConnect's PAYLOAD STATION WEIGHT:n is 1-based, the aircraft's
+// flight_model.cfg [WEIGHT_AND_BALANCE] lists station_load.0, .1, ... Check every index in the sim.
+{
+  "id": "example-narrowbody",
+  "name": "Example narrow-body",
+  "match": ["Rampside Test Aircraft"],
+
+  "passengers": {
+    "capacity": 180,
+    "weightKg": 84,
+    "bagWeightKg": 15,
+    "boardingPerMinute": 18,
+    "deboardingPerMinute": 25,
+    "preparationSeconds": 20
+  },
+
+  "payloadStations": [
+    { "index": 3, "name": "Forward cabin", "kind": "passengers", "share": 0.5 },
+    { "index": 4, "name": "Aft cabin", "kind": "passengers", "share": 0.5 },
+    { "index": 5, "name": "Forward cargo", "kind": "cargo", "share": 0.4 },
+    { "index": 6, "name": "Aft cargo", "kind": "cargo", "share": 0.6 }
+  ],
+
+  "fuel": {
+    "rateKgPerMinute": 600,
+    "truckArrivalSeconds": 45
+  },
+
+  "pushback": {
+    "wheelbaseMeters": 12.6,
+    "speedMps": 1.2,
+    "maxSteeringDeg": 60,
+    "connectSeconds": 30,
+    "disconnectSeconds": 20
+  },
+
+  "jetway": { "connectSeconds": 30, "disconnectSeconds": 20 },
+  "stairs": { "connectSeconds": 25, "disconnectSeconds": 20 },
+  "gpu": { "connectSeconds": 15, "disconnectSeconds": 10 }
+}

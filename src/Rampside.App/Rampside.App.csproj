@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Description>Rampside console host. Talks to MSFS (or a fake sim with --fake).</Description>
+    <RootNamespace>Rampside.App</RootNamespace>
+    <AssemblyName>rampside</AssemblyName>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rampside.Core\Rampside.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(RampsideHasMsfsSdk)' == 'true'">
+    <ProjectReference Include="..\Rampside.MsfsBridge\Rampside.MsfsBridge.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(RampsideHasMsfsSdk)' == 'true'">
+    <DefineConstants>$(DefineConstants);RAMPSIDE_SIMCONNECT</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\profiles\*.json" LinkBase="profiles" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

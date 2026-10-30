@@ -1,0 +1,11 @@
+// Fallback for aircraft without their own profile.
+// No payload stations are listed because their indexes differ per aircraft:
+// boarding still runs, but does not change the aircraft's weight.
+{
+  "id": "generic",
+  "name": "Generic aircraft",
+  "match": [],
+  "passengers": {
+    "capacity": 150
+  }
+}

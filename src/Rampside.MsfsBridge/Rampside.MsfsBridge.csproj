@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>SimConnect implementation of ISimBridge for MSFS 2024.</Description>
+    <RootNamespace>Rampside.MsfsBridge</RootNamespace>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rampside.Core\Rampside.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(RampsideHasMsfsSdk)' == 'true'">
+    <Reference Include="Microsoft.FlightSimulator.SimConnect">
+      <HintPath>$(MsfsSimConnectManagedDll)</HintPath>
+    </Reference>
+    <None Include="$(MsfsSimConnectNativeDll)" Link="SimConnect.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Without the SDK this project builds empty, so Core, App (--fake) and tests still work. -->
+  <ItemGroup Condition="'$(RampsideHasMsfsSdk)' != 'true'">
+    <Compile Remove="**/*.cs" />
+  </ItemGroup>
+
+  <Target Name="RampsideWarnMissingSdk" BeforeTargets="Build" Condition="'$(RampsideHasMsfsSdk)' != 'true'">
+    <Warning Text="MSFS SDK not found (set MSFS2024_SDK or -p:MsfsSdkRoot=...). Rampside.MsfsBridge is built empty; the app will only run with --fake." />
+  </Target>
+
+</Project>

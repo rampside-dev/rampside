@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Simulator-independent ground service logic for Rampside.</Description>
+    <RootNamespace>Rampside.Core</RootNamespace>
+  </PropertyGroup>
+
+</Project>
