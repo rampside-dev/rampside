@@ -33,7 +33,7 @@ public sealed class SimConnectBridge : ISimBridge, IGroundVehicleSpawner
     private GroundMotionData? _groundMotion; // written every frame until released
     private readonly System.Diagnostics.Stopwatch _groundMotionClock = new();
     private static readonly TimeSpan GroundMotionTimeout = TimeSpan.FromSeconds(0.5);
-    private readonly SortedSet<string> _catalog = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<SimObjectKind, SortedSet<string>> _catalogs = new();
 
     private SimConnect? _simConnect;
     private bool _connected;
@@ -59,8 +59,9 @@ public sealed class SimConnectBridge : ISimBridge, IGroundVehicleSpawner
     private enum Request : uint
     {
         AircraftState = 1,
-        GroundVehicleCatalog = 2,
         AircraftPose = 3,
+        // One request per catalog kind: CatalogBase + (int)SimObjectKind.
+        CatalogBase = 100,
     }
 
     private enum Group : uint
@@ -75,7 +76,7 @@ public sealed class SimConnectBridge : ISimBridge, IGroundVehicleSpawner
 
     public event EventHandler<bool>? ConnectionChanged;
     public event EventHandler<string>? Message;
-    public event EventHandler<IReadOnlyList<string>>? GroundVehicleCatalogReceived;
+    public event EventHandler<SimObjectCatalog>? CatalogReceived;
 
     public bool IsConnected
     {
@@ -193,14 +194,27 @@ public sealed class SimConnectBridge : ISimBridge, IGroundVehicleSpawner
         });
     }
 
-    public void RequestGroundVehicleCatalog()
+    public void RequestCatalog(SimObjectKind kind)
     {
         WithSim(sc =>
         {
-            _catalog.Clear();
-            sc.EnumerateSimObjectsAndLiveries(Request.GroundVehicleCatalog, SIMCONNECT_SIMOBJECT_TYPE.GROUND);
+            _catalogs[kind] = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+            sc.EnumerateSimObjectsAndLiveries((Request)((uint)Request.CatalogBase + (uint)kind), ToSimConnect(kind));
         });
     }
+
+    private static SIMCONNECT_SIMOBJECT_TYPE ToSimConnect(SimObjectKind kind) => kind switch
+    {
+        SimObjectKind.All => SIMCONNECT_SIMOBJECT_TYPE.ALL,
+        SimObjectKind.Aircraft => SIMCONNECT_SIMOBJECT_TYPE.AIRCRAFT,
+        SimObjectKind.Helicopter => SIMCONNECT_SIMOBJECT_TYPE.HELICOPTER,
+        SimObjectKind.Boat => SIMCONNECT_SIMOBJECT_TYPE.BOAT,
+        SimObjectKind.Ground => SIMCONNECT_SIMOBJECT_TYPE.GROUND,
+        SimObjectKind.HotAirBalloon => SIMCONNECT_SIMOBJECT_TYPE.HOT_AIR_BALLOON,
+        SimObjectKind.Animal => SIMCONNECT_SIMOBJECT_TYPE.ANIMAL,
+        SimObjectKind.UserAvatar => SIMCONNECT_SIMOBJECT_TYPE.USER_AVATAR,
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+    };
 
     public int? SpawnGroundVehicle(string title, double latitude, double longitude, double headingTrueDeg)
     {
@@ -476,7 +490,8 @@ public sealed class SimConnectBridge : ISimBridge, IGroundVehicleSpawner
 
     private void OnRecvSimobjectCatalog(SimConnect sender, SIMCONNECT_RECV_ENUMERATE_SIMOBJECT_AND_LIVERY_LIST data)
     {
-        if (data.dwRequestID != (uint)Request.GroundVehicleCatalog)
+        var kind = (SimObjectKind)(data.dwRequestID - (uint)Request.CatalogBase);
+        if (data.dwRequestID < (uint)Request.CatalogBase || !_catalogs.TryGetValue(kind, out var catalog))
         {
             return;
         }
@@ -485,14 +500,14 @@ public sealed class SimConnectBridge : ISimBridge, IGroundVehicleSpawner
         {
             if (!string.IsNullOrWhiteSpace(entry.AircraftTitle))
             {
-                _catalog.Add(entry.AircraftTitle);
+                catalog.Add(entry.AircraftTitle);
             }
         }
 
         // Large catalogs arrive in several packets.
         if (data.dwEntryNumber + 1 >= data.dwOutOf)
         {
-            GroundVehicleCatalogReceived?.Invoke(this, _catalog.ToArray());
+            CatalogReceived?.Invoke(this, new SimObjectCatalog(kind, catalog.ToArray()));
         }
     }
 
@@ -738,7 +753,7 @@ public sealed class SimConnectBridge : ISimBridge, IGroundVehicleSpawner
             _drives.Clear();
             _pitchRamp = null;
             _groundMotion = null;
-            _catalog.Clear();
+            _catalogs.Clear();
             foreach (var extension in _extensions)
             {
                 extension.OnClose();

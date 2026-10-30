@@ -10,6 +10,13 @@ Tested so far (spawns correctly): `ASO_Catering_Truck_01`, `Aso_Baggage_Loader_0
 
 Out of 35,224 titles, about 450 are native. Everything else comes from add-ons (see the end).
 
+**People (ground crew, pedestrians):** SimConnect has no SimObject type for people – the types are
+`ALL`, `AIRCRAFT`, `HELICOPTER`, `BOAT`, `GROUND`, `HOT_AIR_BALLOON`, `ANIMAL`, `USER_AVATAR`. Not checked yet
+in the sim. `people` in the console lists every `ANIMAL` title plus all `ALL` titles that sound like a person
+(worker, crew, marshal, pedestrian, …); `simobjects <type> [filter]` lists any one type. If people turn up,
+they spawn with `spawn <title> …` like a vehicle. Walking would be done by moving them each frame
+(as with the tug); whether a walk animation plays then is open.
+
 ## 1. Ground handling – Asobo set (`ASO_*`)
 
 The vehicles MSFS 2024 itself uses for its airport services. Best first choice for Rampside.

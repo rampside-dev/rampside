@@ -3,13 +3,16 @@ namespace Rampside.Core.Simulation;
 /// <summary>Spawns the simulator's own ground vehicles (SimObjects of type ground) next to the aircraft.</summary>
 public interface IGroundVehicleSpawner
 {
-    /// <summary>Raised with the container titles of all spawnable ground vehicles, sorted.</summary>
-    event EventHandler<IReadOnlyList<string>>? GroundVehicleCatalogReceived;
+    /// <summary>Raised with the container titles of all spawnable SimObjects of one kind, sorted.</summary>
+    event EventHandler<SimObjectCatalog>? CatalogReceived;
 
     int SpawnedVehicleCount { get; }
 
-    /// <summary>Asks the simulator for its ground vehicle catalog. The answer arrives via <see cref="GroundVehicleCatalogReceived"/>.</summary>
-    void RequestGroundVehicleCatalog();
+    /// <summary>
+    /// Asks the simulator for its SimObject catalog of one kind. The answer arrives via <see cref="CatalogReceived"/>.
+    /// Every title can be spawned with <see cref="SpawnGroundVehicle"/>, not only ground vehicles.
+    /// </summary>
+    void RequestCatalog(SimObjectKind kind);
 
     /// <summary>
     /// Places a vehicle on the ground at the given position, facing <paramref name="headingTrueDeg"/>.
@@ -38,6 +41,25 @@ public interface IGroundVehicleSpawner
     /// <summary>Removes every vehicle this client has spawned.</summary>
     void RemoveSpawnedVehicles();
 }
+
+/// <summary>
+/// SimObject types SimConnect can enumerate (SIMCONNECT_SIMOBJECT_TYPE). There is no type for people:
+/// ground crew and pedestrians, if spawnable, show up under one of these (presumably <see cref="Animal"/> or only under <see cref="All"/>).
+/// </summary>
+public enum SimObjectKind
+{
+    All,
+    Aircraft,
+    Helicopter,
+    Boat,
+    Ground,
+    HotAirBalloon,
+    Animal,
+    UserAvatar,
+}
+
+/// <summary>Answer to <see cref="IGroundVehicleSpawner.RequestCatalog"/>: the sorted container titles of one kind.</summary>
+public sealed record SimObjectCatalog(SimObjectKind Kind, IReadOnlyList<string> Titles);
 
 /// <summary>
 /// Place of a vehicle relative to the aircraft reference point: metres forward and to the right,

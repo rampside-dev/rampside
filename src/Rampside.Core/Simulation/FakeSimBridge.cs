@@ -109,10 +109,15 @@ public sealed class FakeSimBridge : ISimBridge, IGroundVehicleSpawner
 
     public event EventHandler<bool>? ConnectionChanged;
     public event EventHandler<string>? Message;
-    public event EventHandler<IReadOnlyList<string>>? GroundVehicleCatalogReceived;
+    public event EventHandler<SimObjectCatalog>? CatalogReceived;
 
-    public void RequestGroundVehicleCatalog() =>
-        GroundVehicleCatalogReceived?.Invoke(this, new[] { "ASO_Baggage_Loader_01", "ASO_Catering_Truck_01", "ASO_Pushback_White" });
+    public void RequestCatalog(SimObjectKind kind) =>
+        CatalogReceived?.Invoke(this, new SimObjectCatalog(kind, kind switch
+        {
+            SimObjectKind.Ground => new[] { "ASO_Baggage_Loader_01", "ASO_Catering_Truck_01", "ASO_Pushback_White" },
+            SimObjectKind.All => new[] { "ASO_Baggage_Loader_01", "ASO_Catering_Truck_01", "ASO_Pushback_White", "Fake_Ground_Crew_Marshaller" },
+            _ => Array.Empty<string>(),
+        }));
 
     public int? SpawnGroundVehicle(string title, double latitude, double longitude, double headingTrueDeg)
     {

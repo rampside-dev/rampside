@@ -17,7 +17,8 @@ internal sealed class ConsoleShell
     private readonly Func<GroundServiceOrchestrator?> _orchestrator;
     private readonly IPmdgLink? _pmdg;
     private readonly IGroundVehicleSpawner? _spawner;
-    private string? _catalogFilter;
+    // What to print when a catalog of that kind arrives: a filter on the titles (null = all of them).
+    private readonly Dictionary<SimObjectKind, Func<string, bool>?> _catalogFilters = new();
 
     public ConsoleShell(ISimBridge sim, FakeSimBridge? fake, Func<GroundServiceOrchestrator?> orchestrator, IPmdgLink? pmdg)
     {
@@ -28,7 +29,7 @@ internal sealed class ConsoleShell
         _spawner = sim as IGroundVehicleSpawner;
         if (_spawner is not null)
         {
-            _spawner.GroundVehicleCatalogReceived += (_, titles) => PrintCatalog(titles);
+            _spawner.CatalogReceived += (_, catalog) => PrintCatalog(catalog);
         }
     }
 
@@ -72,9 +73,21 @@ internal sealed class ConsoleShell
                 PrintCdu(parts.Length > 1 && int.TryParse(parts[1], out var cdu) ? cdu : 0);
                 return true;
             case "vehicles" when _spawner is not null:
-                _catalogFilter = parts.Length > 1 ? parts[1] : null;
-                _spawner.RequestGroundVehicleCatalog();
-                Console.WriteLine("  Asking the simulator for its ground vehicles...");
+                RequestCatalog(SimObjectKind.Ground, parts.Length > 1 ? Contains(parts[1]) : null);
+                return true;
+            case "simobjects" when _spawner is not null:
+                if (parts.Length < 2 || ParseKind(parts[1]) is not { } kind)
+                {
+                    Console.WriteLine("! Usage: simobjects <all|ground|animal|aircraft|helicopter|boat|balloon|avatar> [filter]");
+                    return true;
+                }
+
+                RequestCatalog(kind, parts.Length > 2 ? Contains(parts[2]) : null);
+                return true;
+            case "people" when _spawner is not null:
+                // SimConnect has no type for people: list all animals, and everything that sounds like a person.
+                RequestCatalog(SimObjectKind.Animal, null);
+                RequestCatalog(SimObjectKind.All, LooksLikePerson);
                 return true;
             case "spawn" when _spawner is not null:
                 Spawn(parts);
@@ -308,6 +321,10 @@ internal sealed class ConsoleShell
             doors                      door states (doors close: close all)
             door <door> open|close     l1 r1 l2 r2 cargo1 cargo2 airstair
             vehicles [filter]          list the sim's ground vehicles
+            simobjects <type> [filter] list SimObjects of one type: all ground animal
+                                       aircraft helicopter boat balloon avatar
+            people                     look for spawnable people (animals, plus all
+                                       titles that sound like a person)
             spawn demo                 park a few default vehicles around the aircraft
             spawn <title> <fwd> <right> [hdg]
                                        spawn a vehicle <fwd>/<right> metres from the
@@ -339,12 +356,45 @@ internal sealed class ConsoleShell
         ("ASO_Pushback_White", 22, 0, 180),       // in front of the nose gear, facing the aircraft
     };
 
-    private void PrintCatalog(IReadOnlyList<string> titles)
+    /// <summary>Title parts that hint at a person (ground crew, pedestrians, passengers).</summary>
+    private static readonly string[] PersonHints =
     {
-        var shown = titles
-            .Where(t => _catalogFilter is null || t.Contains(_catalogFilter, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-        Console.WriteLine($"  {shown.Count} of {titles.Count} ground vehicle(s):");
+        "human", "person", "people", "pedestrian", "passenger", "worker", "crew", "marshal", "wingwalk", "walker",
+        "character", "avatar", "npc", "staff", "agent", "mechanic", "pilot", "ramp_", "male", "female",
+    };
+
+    private static bool LooksLikePerson(string title) =>
+        PersonHints.Any(h => title.Contains(h, StringComparison.OrdinalIgnoreCase));
+
+    private static Func<string, bool> Contains(string text) =>
+        title => title.Contains(text, StringComparison.OrdinalIgnoreCase);
+
+    private static SimObjectKind? ParseKind(string text) => text.ToLowerInvariant() switch
+    {
+        "all" => SimObjectKind.All,
+        "ground" => SimObjectKind.Ground,
+        "animal" or "animals" => SimObjectKind.Animal,
+        "aircraft" or "plane" => SimObjectKind.Aircraft,
+        "helicopter" or "heli" => SimObjectKind.Helicopter,
+        "boat" or "boats" => SimObjectKind.Boat,
+        "balloon" => SimObjectKind.HotAirBalloon,
+        "avatar" => SimObjectKind.UserAvatar,
+        _ => null,
+    };
+
+    private void RequestCatalog(SimObjectKind kind, Func<string, bool>? filter)
+    {
+        lock (_catalogFilters) _catalogFilters[kind] = filter;
+        Console.WriteLine($"  Asking the simulator for its SimObjects of type {kind}...");
+        _spawner!.RequestCatalog(kind);
+    }
+
+    private void PrintCatalog(SimObjectCatalog catalog)
+    {
+        Func<string, bool>? filter;
+        lock (_catalogFilters) filter = _catalogFilters.GetValueOrDefault(catalog.Kind);
+        var shown = catalog.Titles.Where(t => filter is null || filter(t)).ToList();
+        Console.WriteLine($"  {catalog.Kind}: {shown.Count} of {catalog.Titles.Count} SimObject(s):");
         foreach (var title in shown)
         {
             Console.WriteLine($"    {title}");
