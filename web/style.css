@@ -1,18 +1,18 @@
 /* Rampside – rampside.dev
-   Colors come from the logo: apron teal, taxiway yellow, jetway cyan, fuselage white. */
+   Asphalt at night: neutral dark apron, taxiway yellow, jetway cyan, fuselage white. The teal stays in the logo. */
 
 :root {
-  --apron: #112830;
-  --apron-2: #173A44;
-  --apron-3: #21515E;
-  --joint: #0C1F26;
+  --apron: #17191C;
+  --apron-2: #22262A;
+  --apron-3: #30363C;
+  --joint: #101214;
   --taxi: #F2B84B;
   --taxi-ink: #2A1E06;
   --jetway: #7FC8D8;
   --hull: #EEF3F5;
-  --concrete: #A3B9BF;
+  --concrete: #9BA3AA;
   --hold: #C8322B;
-  --sign: #161819;
+  --sign: #000;
 
   --font: "Overpass", "Segoe UI", system-ui, sans-serif;
   --mono: "Overpass Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
@@ -104,10 +104,10 @@ p code, dd code {
   position: sticky;
   top: 0;
   z-index: 5;
-  background: rgba(17, 40, 48, 0.86);
+  background: rgba(23, 25, 28, 0.86);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(127, 200, 216, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .header-row {
@@ -233,7 +233,7 @@ p code, dd code {
 .lead {
   font-size: clamp(1.15rem, 1.6vw, 1.32rem);
   line-height: 1.5;
-  color: #D3DEE1;
+  color: #D6DADD;
   max-width: 44ch;
 }
 
@@ -246,7 +246,7 @@ p code, dd code {
   border-radius: 36px;
   overflow: hidden;
   box-shadow:
-    0 0 0 1px rgba(127, 200, 216, 0.18),
+    0 0 0 1px rgba(255, 255, 255, 0.18),
     0 40px 80px -30px rgba(0, 0, 0, 0.6);
 }
 
@@ -308,11 +308,11 @@ p code, dd code {
   gap: 18px;
   margin-bottom: clamp(40px, 5vw, 64px);
 }
-.section-head p { color: #C9D6DA; font-size: 1.12rem; max-width: 60ch; }
+.section-head p { color: #C6CBCF; font-size: 1.12rem; max-width: 60ch; }
 
 /* ---------- Turnaround: steps along a lead-in line ---------- */
 
-#turnaround { border-top: 1px solid rgba(127, 200, 216, 0.1); }
+#turnaround { border-top: 1px solid rgba(255, 255, 255, 0.1); }
 
 .leadin {
   --line: 6px;
@@ -381,7 +381,7 @@ p code, dd code {
 }
 
 .leadin h3 { grid-area: title; }
-.leadin p { grid-area: text; color: #C9D6DA; }
+.leadin p { grid-area: text; color: #C6CBCF; }
 
 .leadin code {
   grid-area: cmd;
@@ -400,8 +400,8 @@ p code, dd code {
 /* ---------- Rules ---------- */
 
 .section-rules {
-  background: rgba(10, 26, 31, 0.55);
-  border-block: 1px solid rgba(127, 200, 216, 0.1);
+  background: rgba(12, 13, 15, 0.55);
+  border-block: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .signs {
@@ -430,7 +430,7 @@ p code, dd code {
 .sign .mand, .sign .loc { display: flex; align-items: center; border-radius: 2px; }
 .sign .loc { border-width: 3px; }
 
-.signs p { color: #C9D6DA; max-width: 46ch; }
+.signs p { color: #C6CBCF; max-width: 46ch; }
 
 /* ---------- Aircraft ---------- */
 
@@ -442,7 +442,7 @@ p code, dd code {
 }
 
 .aircraft-grid > div { display: grid; gap: 20px; }
-.aircraft-grid > div > p { color: #C9D6DA; }
+.aircraft-grid > div > p { color: #C6CBCF; }
 
 .pmdg {
   margin-top: 16px;
@@ -453,7 +453,7 @@ p code, dd code {
   display: grid;
   gap: 10px;
 }
-.pmdg p { color: #C9D6DA; }
+.pmdg p { color: #C6CBCF; }
 
 .code,
 .terminal pre {
@@ -467,11 +467,11 @@ p code, dd code {
 .code {
   padding: 28px 30px;
   background: var(--joint);
-  border: 1px solid rgba(127, 200, 216, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 14px;
 }
 
-.c { color: #6F8B92; }
+.c { color: #7A838A; }
 .k { color: var(--jetway); }
 .s { color: var(--taxi); }
 .n { color: #F4D9A6; }
@@ -497,13 +497,13 @@ p code, dd code {
 .uses > div + div { padding-left: 28px; border-left: 1px solid var(--apron-3); }
 
 .uses dt { font-weight: 800; font-size: 1.2rem; }
-.uses dd { margin: 0; color: #C9D6DA; }
+.uses dd { margin: 0; color: #C6CBCF; }
 
 /* ---------- Install ---------- */
 
 .section-install {
-  background: linear-gradient(180deg, rgba(10, 26, 31, 0.6), rgba(10, 26, 31, 0.2));
-  border-top: 1px solid rgba(127, 200, 216, 0.1);
+  background: linear-gradient(180deg, rgba(12, 13, 15, 0.6), rgba(12, 13, 15, 0.2));
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .stopbar {
@@ -522,12 +522,12 @@ p code, dd code {
 }
 
 .install-grid > div:first-child { display: grid; gap: 16px; }
-.install-grid > div:first-child p { color: #C9D6DA; }
+.install-grid > div:first-child p { color: #C6CBCF; }
 .install-grid h3 { margin-top: 18px; }
 
 .terminal {
   background: var(--joint);
-  border: 1px solid rgba(127, 200, 216, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 14px;
   overflow: hidden;
 }
@@ -536,8 +536,8 @@ p code, dd code {
   display: flex;
   gap: 8px;
   padding: 14px 18px;
-  background: rgba(127, 200, 216, 0.06);
-  border-bottom: 1px solid rgba(127, 200, 216, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 .terminal-bar span {
   width: 11px;
@@ -568,13 +568,13 @@ p code, dd code {
 }
 .contribute > div { display: grid; gap: 12px; }
 .contribute h2 { font-size: clamp(1.7rem, 2.8vw, 2.2rem); }
-.contribute p { color: #C9D6DA; max-width: 58ch; }
+.contribute p { color: #C6CBCF; max-width: 58ch; }
 
 /* ---------- Footer ---------- */
 
 .site-footer {
   padding-block: 36px 44px;
-  border-top: 1px solid rgba(127, 200, 216, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--concrete);
   font-size: 0.92rem;
 }

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Rampside – open-source ground services for MSFS 2024</title>
   <meta name="description" content="Pushback, boarding, refueling, jetways, stairs and ground power for Microsoft Flight Simulator 2024. Free and open source.">
-  <meta name="theme-color" content="#112830">
+  <meta name="theme-color" content="#17191C">
 
   <meta property="og:title" content="Rampside">
   <meta property="og:description" content="Open-source ground services for Microsoft Flight Simulator 2024.">
@@ -73,11 +73,11 @@
           <svg viewBox="0 0 600 700" role="img" aria-hidden="true">
             <defs>
               <linearGradient id="apron" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-color="#21515E" />
-                <stop offset="1" stop-color="#132E37" />
+                <stop offset="0" stop-color="#2C3136" />
+                <stop offset="1" stop-color="#1D2024" />
               </linearGradient>
               <pattern id="slabs" width="75" height="75" patternUnits="userSpaceOnUse">
-                <path d="M75 0 L0 0 0 75" fill="none" stroke="#0E2229" stroke-opacity=".55" stroke-width="1.5" />
+                <path d="M75 0 L0 0 0 75" fill="none" stroke="#141619" stroke-opacity=".55" stroke-width="1.5" />
               </pattern>
               <g id="airliner">
                 <path d="M140 106 L230 156 L230 170 L140 146 Z" />
@@ -92,7 +92,7 @@
             <rect width="600" height="700" fill="url(#slabs)" />
 
             <!-- Terminal with lit windows -->
-            <rect x="0" y="0" width="600" height="58" fill="#0D1E24" />
+            <rect x="0" y="0" width="600" height="58" fill="#111315" />
             <g fill="#F2B84B" opacity=".55">
               <rect x="18" y="20" width="34" height="14" rx="2" />
               <rect x="64" y="20" width="34" height="14" rx="2" opacity=".5" />
@@ -116,16 +116,16 @@
 
             <!-- Airliner taxiing in; the outer group is animated -->
             <g class="taxi">
-              <g transform="translate(306 138) scale(2.2) translate(-128 -52)" fill="#061317" opacity=".35">
+              <g transform="translate(306 138) scale(2.2) translate(-128 -52)" fill="#000000" opacity=".35">
                 <use href="#airliner" />
               </g>
               <g transform="translate(300 128) scale(2.2) translate(-128 -52)">
                 <g fill="#EEF3F5"><use href="#airliner" /></g>
-                <g fill="#EEF3F5" stroke="#1A3F4A" stroke-width="4">
+                <g fill="#EEF3F5" stroke="#262B30" stroke-width="4">
                   <rect x="166" y="114" width="18" height="32" rx="8" />
                   <rect x="72" y="114" width="18" height="32" rx="8" />
                 </g>
-                <g fill="#1A3F4A">
+                <g fill="#262B30">
                   <path d="M121 66 Q128 61 135 66 L134 70 Q128 67 122 70 Z" />
                 </g>
               </g>
@@ -135,23 +135,23 @@
             <g class="jetway">
               <line class="tunnel" x1="104" y1="92" x2="258" y2="182" pathLength="100" stroke="#7FC8D8" stroke-width="24" stroke-linecap="round" />
               <circle cx="104" cy="92" r="22" fill="#7FC8D8" />
-              <circle cx="104" cy="92" r="9" fill="#21515E" />
-              <rect x="64" y="58" width="80" height="12" fill="#0D1E24" />
+              <circle cx="104" cy="92" r="9" fill="#2C3136" />
+              <rect x="64" y="58" width="80" height="12" fill="#111315" />
             </g>
 
             <!-- Ground power unit at the nose, with its cable -->
             <g class="gear gpu">
-              <path d="M300 150 C320 150 336 160 352 168" fill="none" stroke="#0B1A1F" stroke-width="3" />
+              <path d="M300 150 C320 150 336 160 352 168" fill="none" stroke="#0C0D0F" stroke-width="3" />
               <rect x="352" y="156" width="40" height="24" rx="4" fill="#F2B84B" />
-              <rect x="358" y="162" width="16" height="12" rx="2" fill="#1A3F4A" />
+              <rect x="358" y="162" width="16" height="12" rx="2" fill="#262B30" />
             </g>
 
             <!-- Stairs truck at the rear left door -->
             <g class="gear stairs">
               <rect x="154" y="424" width="44" height="30" rx="5" fill="#F2B84B" />
-              <rect x="160" y="430" width="14" height="18" rx="2" fill="#1A3F4A" />
-              <rect x="198" y="430" width="64" height="18" fill="#C9D4D7" />
-              <g stroke="#6E8A91" stroke-width="2">
+              <rect x="160" y="430" width="14" height="18" rx="2" fill="#262B30" />
+              <rect x="198" y="430" width="64" height="18" fill="#C9CED2" />
+              <g stroke="#7D868D" stroke-width="2">
                 <line x1="208" y1="430" x2="208" y2="448" />
                 <line x1="218" y1="430" x2="218" y2="448" />
                 <line x1="228" y1="430" x2="228" y2="448" />
@@ -162,11 +162,11 @@
 
             <!-- Fuel truck behind the right wing, hose to the wing -->
             <g class="gear fuel">
-              <path class="hose" d="M418 392 C418 372 426 362 432 350" fill="none" stroke="#0B1A1F" stroke-width="3" stroke-linecap="round" pathLength="100" />
+              <path class="hose" d="M418 392 C418 372 426 362 432 350" fill="none" stroke="#0C0D0F" stroke-width="3" stroke-linecap="round" pathLength="100" />
               <rect x="394" y="392" width="96" height="34" rx="12" fill="#EEF3F5" />
               <rect x="394" y="405" width="96" height="6" fill="#7FC8D8" opacity=".8" />
               <rect x="490" y="394" width="30" height="30" rx="6" fill="#F2B84B" />
-              <rect x="508" y="399" width="8" height="20" rx="2" fill="#1A3F4A" />
+              <rect x="508" y="399" width="8" height="20" rx="2" fill="#262B30" />
             </g>
           </svg>
         </figure>
