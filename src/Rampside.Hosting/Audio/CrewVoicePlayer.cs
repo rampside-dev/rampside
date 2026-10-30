@@ -125,7 +125,7 @@ public sealed class CrewVoicePlayer : IDisposable
             try
             {
                 var clip = WavClip.Join(prepared.Files.Select(_library.Clip).ToArray(), PhraseGap);
-                var wav = RadioEffect.Apply(clip, Volume, _random).ToWav();
+                var wav = RadioEffect.Apply(clip, Volume, _random, pushToTalk: true).ToWav();
                 Speaking?.Invoke(this, prepared.Text);
                 _output.Play(wav);
             }

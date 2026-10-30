@@ -128,6 +128,39 @@ public class CrewVoiceTests
         Assert.InRange(radio.Samples.Max(s => Math.Abs((int)s)), 0.4 * 32767, 0.46 * 32767);
     }
 
+    [Fact]
+    public void Push_to_talk_release_click_and_squelch_follow_the_voice_without_drowning_it()
+    {
+        var rate = 24000;
+        var tone = Enumerable.Range(0, rate / 2)
+            .Select(i => (short)(20000 * Math.Sin(2 * Math.PI * 1000 * i / rate)))
+            .ToArray();
+        var clean = RadioEffect.Apply(new WavClip(tone, rate), volume: 0.5, new Random(1));
+        var keyed = RadioEffect.Apply(new WavClip(tone, rate), volume: 0.5, new Random(1), pushToTalk: true);
+
+        int At(TimeSpan time) => (int)(time.TotalSeconds * rate);
+        var lineOpens = At(RadioEffect.LeadSilence);
+        var lead = lineOpens + At(RadioEffect.KeyLead);
+        var release = lead + tone.Length + At(RadioEffect.KeyTail);
+        var squelch = release + At(RadioEffect.SquelchDelay);
+        var squelchEnd = squelch + At(RadioEffect.SquelchLength);
+        Assert.Equal(release + At(RadioEffect.ClickLength) + At(RadioEffect.TrailSilence), keyed.Samples.Length);
+
+        // Silence at the start, so a sound device fading in does not swallow anything; then only faint hiss, no click.
+        static int Loudest(IEnumerable<short> s) => s.Max(x => Math.Abs((int)x));
+        var voice = Loudest(keyed.Samples.Skip(lead).Take(tone.Length));
+        Assert.Equal(0, Loudest(keyed.Samples.Take(lineOpens)));
+        Assert.InRange(Loudest(keyed.Samples.Skip(lineOpens).Take(lead - lineOpens - At(TimeSpan.FromMilliseconds(10)))), 1, 0.02 * voice);
+
+        // The voice keeps its level and stays the loudest part; the release click is clear, the squelch quiet.
+        Assert.InRange(voice, 0.4 * 32767, 0.46 * 32767);
+        Assert.Equal(Loudest(clean.Samples), voice, tolerance: 0.02 * voice);
+        Assert.InRange(Loudest(keyed.Samples.Skip(release).Take(At(TimeSpan.FromMilliseconds(15)))), 0.6 * voice, voice);
+        var squelchMiddle = keyed.Samples.Skip(squelch + At(TimeSpan.FromMilliseconds(30))).Take(At(TimeSpan.FromMilliseconds(30)));
+        Assert.InRange(Loudest(squelchMiddle), 0.08 * voice, 0.3 * voice);
+        Assert.InRange(Loudest(keyed.Samples.Skip(squelchEnd + At(TimeSpan.FromMilliseconds(20)))), 0, 0.02 * voice);
+    }
+
     private static List<CrewCall> Record(TestRig rig)
     {
         var calls = new List<CrewCall>();
