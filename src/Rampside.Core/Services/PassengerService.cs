@@ -18,10 +18,17 @@ public sealed class PassengerService : GroundService
     public double PassengersOnBoard { get; private set; }
     public int TargetPassengers { get; private set; }
 
-    public void StartBoarding(ServiceContext context, int passengers)
+    /// <summary>Load of the last boarding; deboarding unloads it again.</summary>
+    public LoadPlan? Load { get; private set; }
+
+    public void StartBoarding(ServiceContext context, int passengers) =>
+        StartBoarding(context, LoadPlan.FromProfile(context.Profile.Passengers, Math.Clamp(passengers, 0, context.Profile.Passengers.Capacity)));
+
+    public void StartBoarding(ServiceContext context, LoadPlan load)
     {
         _boarding = true;
-        TargetPassengers = Math.Clamp(passengers, 0, context.Profile.Passengers.Capacity);
+        TargetPassengers = Math.Clamp(load.Passengers, 0, context.Profile.Passengers.Capacity);
+        Load = load;
         Begin("Preparing cabin for boarding");
     }
 
@@ -104,7 +111,8 @@ public sealed class PassengerService : GroundService
     {
         if (context.Adapter.SupportsPayload)
         {
-            context.Adapter.SetPassengerLoad((int)Math.Round(PassengersOnBoard));
+            var load = Load ?? LoadPlan.FromProfile(context.Profile.Passengers, (int)Math.Round(PassengersOnBoard));
+            context.Adapter.SetPayload(load.At(PassengersOnBoard));
         }
     }
 }

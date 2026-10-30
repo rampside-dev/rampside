@@ -1,8 +1,8 @@
 using System.Collections.Specialized;
-using System.Runtime.InteropServices;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Rampside.Desktop.ViewModels;
@@ -14,18 +14,21 @@ public partial class MainWindow : Window
     private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(5);
 
     private readonly MainViewModel _viewModel;
-    private ScrollViewer? _logViewer;
     private bool _followLog = true;
     private bool _logScrollPending;
+    private double? _logIndent;
 
     public MainWindow(MainViewModel viewModel)
     {
         InitializeComponent();
         _viewModel = viewModel;
         DataContext = viewModel;
+        foreach (var entry in viewModel.Log)
+        {
+            LogDocument.Blocks.Add(CreateLogParagraph(entry));
+        }
+
         viewModel.Log.CollectionChanged += OnLogChanged;
-        LogList.CommandBindings.Add(new CommandBinding(ApplicationCommands.Copy, CopySelectedLogLines,
-            (_, e) => e.CanExecute = LogList.SelectedItems.Count > 0));
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -50,18 +53,76 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>Keeps the log document in step with the view model (lines are added at the end, old ones removed at the start).</summary>
     private void OnLogChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (e.Action == NotifyCollectionChangedAction.Add && _followLog)
+        switch (e.Action)
+        {
+            case NotifyCollectionChangedAction.Add when e.NewItems is not null:
+                foreach (LogEntry entry in e.NewItems)
+                {
+                    LogDocument.Blocks.Add(CreateLogParagraph(entry));
+                }
+
+                break;
+
+            case NotifyCollectionChangedAction.Remove when e.OldItems is not null && e.OldStartingIndex == 0:
+                for (var i = 0; i < e.OldItems.Count && LogDocument.Blocks.FirstBlock is { } first; i++)
+                {
+                    LogDocument.Blocks.Remove(first);
+                }
+
+                break;
+
+            default:
+                LogDocument.Blocks.Clear();
+                foreach (var entry in _viewModel.Log)
+                {
+                    LogDocument.Blocks.Add(CreateLogParagraph(entry));
+                }
+
+                break;
+        }
+
+        if (_followLog)
         {
             ScrollLogToEndLater();
         }
     }
 
+    /// <summary>
+    /// One line "HH:mm:ss  text": the time in a dim colour, the text coloured by kind. Wrapped lines are indented
+    /// under the text, and copying gives the same "time  text" format as before.
+    /// </summary>
+    private Paragraph CreateLogParagraph(LogEntry entry)
+    {
+        var indent = _logIndent ??= MeasureLogText("00:00:00  ");
+        var paragraph = new Paragraph { Margin = new Thickness(indent, 0, 0, 1), TextIndent = -indent };
+        paragraph.Inlines.Add(new Run($"{entry.TimeText}  ") { Foreground = (Brush)FindResource("TextDisabled") });
+        paragraph.Inlines.Add(new Run(entry.Text)
+        {
+            Foreground = (Brush)FindResource(entry.Kind switch
+            {
+                LogKind.Warning => "Warn",
+                LogKind.Accepted => "Accent",
+                LogKind.Rejected => "Bad",
+                _ => "TextPrimary",
+            }),
+        });
+        return paragraph;
+    }
+
+    private double MeasureLogText(string text) => new FormattedText(
+        text,
+        CultureInfo.InvariantCulture,
+        FlowDirection.LeftToRight,
+        new Typeface(LogBox.FontFamily, LogBox.FontStyle, LogBox.FontWeight, LogBox.FontStretch),
+        LogBox.FontSize,
+        Brushes.White,
+        VisualTreeHelper.GetDpi(this).PixelsPerDip).WidthIncludingTrailingWhitespace;
+
     private void OnLogScrollChanged(object sender, ScrollChangedEventArgs e)
     {
-        _logViewer ??= e.OriginalSource as ScrollViewer;
-
         // Follow new lines unless the user scrolled up to read older ones. Only scrolling by the user
         // changes that; new lines and resizing keep the end in view while following.
         if (e.ExtentHeightChange == 0 && e.ViewportHeightChange == 0)
@@ -86,22 +147,7 @@ public partial class MainWindow : Window
         Dispatcher.InvokeAsync(() =>
         {
             _logScrollPending = false;
-            _logViewer?.ScrollToEnd();
+            LogBox.ScrollToEnd();
         }, DispatcherPriority.Background);
-    }
-
-    private void CopySelectedLogLines(object sender, ExecutedRoutedEventArgs e)
-    {
-        var lines = LogList.SelectedItems.Cast<LogEntry>()
-            .OrderBy(_viewModel.Log.IndexOf)
-            .Select(entry => entry.ToString());
-        try
-        {
-            Clipboard.SetText(string.Join(Environment.NewLine, lines));
-        }
-        catch (ExternalException)
-        {
-            // Clipboard is busy; the user can simply try again.
-        }
     }
 }

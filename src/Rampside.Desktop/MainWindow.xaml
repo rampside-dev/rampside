@@ -4,7 +4,7 @@
         xmlns:local="clr-namespace:Rampside.Desktop"
         xmlns:vm="clr-namespace:Rampside.Desktop.ViewModels"
         Title="Rampside"
-        Width="520" Height="940" MinWidth="440" MinHeight="480"
+        Width="520" Height="820" MinWidth="440" MinHeight="480"
         Background="{StaticResource WindowBackground}"
         Foreground="{StaticResource TextPrimary}"
         FontFamily="{StaticResource UiFont}" FontSize="13"
@@ -162,8 +162,28 @@
                                 Visibility="{Binding HasProgress, Converter={StaticResource VisibleWhen}}" />
                 <TextBlock Text="{Binding MotionText}" Style="{StaticResource Muted}" Margin="0,2,0,0"
                            Visibility="{Binding IsBusy, Converter={StaticResource VisibleWhen}}" />
+                <!-- Planned pushback: one button per compass direction the nose can end up facing. -->
+                <StackPanel Margin="0,8,0,0" Visibility="{Binding HasDirections, Converter={StaticResource VisibleWhen}}">
+                    <TextBlock Text="{Binding DirectionsTitle}" Style="{StaticResource Label}" Margin="0,0,0,4" />
+                    <!-- One option per row, so long GSX names stay readable. -->
+                    <ItemsControl ItemsSource="{Binding Directions}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding Name}" Command="{Binding Command}" ToolTip="{Binding ToolTip}"
+                                        Style="{StaticResource PrimaryAction}" Margin="0,0,0,6"
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                        AutomationProperties.Name="{Binding ToolTip}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+                <TextBlock Text="{Binding DirectionsHint}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0" />
                 <WrapPanel Margin="0,6,0,0">
-                    <Button Content="Call tug" Command="{Binding CallCommand}" Style="{StaticResource PrimaryAction}" Margin="0,0,12,0" />
+                    <Button Content="Call tug" Command="{Binding CallCommand}" Style="{StaticResource PrimaryAction}" Margin="0,0,12,0"
+                            Visibility="{Binding HasDirections, Converter={StaticResource CollapsedWhen}}" />
+                    <Button Content="Manual" Command="{Binding CallCommand}" Style="{StaticResource ActionButton}" Margin="0,0,12,0"
+                            Visibility="{Binding HasDirections, Converter={StaticResource VisibleWhen}}"
+                            ToolTip="Call the tug and steer by hand" AutomationProperties.Name="Call tug, steer by hand" />
                     <Button Content="Tail left" Command="{Binding TailLeftCommand}" Style="{StaticResource ActionButton}" Margin="0,0,2,0" />
                     <Button Content="Straight" Command="{Binding StraightCommand}" Style="{StaticResource ActionButton}" Margin="0,0,2,0" />
                     <Button Content="Tail right" Command="{Binding TailRightCommand}" Style="{StaticResource ActionButton}" Margin="0,0,12,0" />
@@ -173,6 +193,19 @@
                             AutomationProperties.Name="Abort pushback" />
                 </WrapPanel>
             </StackPanel>
+        </DataTemplate>
+
+        <!-- Separator line between service rows; the content picks its template by view model type. -->
+        <DataTemplate x:Key="ServiceRow">
+            <Border x:Name="Row" BorderBrush="{StaticResource CardBorder}" BorderThickness="0,1,0,0" Padding="0,8,0,8">
+                <ContentPresenter Content="{Binding}" />
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding RelativeSource={RelativeSource PreviousData}}" Value="{x:Null}">
+                    <Setter TargetName="Row" Property="BorderThickness" Value="0" />
+                    <Setter TargetName="Row" Property="Padding" Value="0,0,0,8" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
         </DataTemplate>
 
         <DataTemplate DataType="{x:Type vm:DoorViewModel}">
@@ -198,27 +231,6 @@
             </DataTemplate.Triggers>
         </DataTemplate>
 
-        <DataTemplate DataType="{x:Type vm:LogEntry}">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding TimeText}" Foreground="{StaticResource TextDisabled}" Margin="0,0,10,0" />
-                <TextBlock x:Name="LineText" Grid.Column="1" Text="{Binding Text}" TextWrapping="Wrap" Foreground="{StaticResource TextPrimary}" />
-            </Grid>
-            <DataTemplate.Triggers>
-                <DataTrigger Binding="{Binding Kind}" Value="Warning">
-                    <Setter TargetName="LineText" Property="Foreground" Value="{StaticResource Warn}" />
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Kind}" Value="Accepted">
-                    <Setter TargetName="LineText" Property="Foreground" Value="{StaticResource Accent}" />
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Kind}" Value="Rejected">
-                    <Setter TargetName="LineText" Property="Foreground" Value="{StaticResource Bad}" />
-                </DataTrigger>
-            </DataTemplate.Triggers>
-        </DataTemplate>
     </Window.Resources>
 
     <Grid>
@@ -322,114 +334,311 @@
             </DockPanel>
         </Border>
 
-        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" Padding="14,0,14,0" Focusable="False">
-            <StackPanel>
+        <!-- One tab per job at the stand. Rows update in place, so switching tabs keeps typed input. -->
+        <TabControl Grid.Row="3" x:Name="Tabs">
 
-                <!-- Aircraft -->
-                <Border Style="{StaticResource Card}">
-                    <StackPanel>
-                        <TextBlock Text="AIRCRAFT" Style="{StaticResource SectionTitle}" Margin="0,0,0,6" />
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-
-                            <TextBlock Grid.Row="0" Text="Stand" Style="{StaticResource Label}" />
-                            <TextBlock Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding StandText}" Style="{StaticResource Value}" />
-                            <TextBlock Grid.Row="1" Text="Jetway" Style="{StaticResource Label}" />
-                            <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding JetwayText}" Style="{StaticResource Value}" />
-
-                            <TextBlock Grid.Row="2" Text="On ground" Style="{StaticResource Label}" />
-                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding OnGroundText}" Style="{StaticResource Value}" />
-                            <TextBlock Grid.Row="2" Grid.Column="2" Text="Parking brake" Style="{StaticResource Label}" />
-                            <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding ParkingBrakeText}" Style="{StaticResource Value}" />
-
-                            <TextBlock Grid.Row="3" Text="Engines" Style="{StaticResource Label}" />
-                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding EnginesText}" Style="{StaticResource Value}" />
-                            <TextBlock Grid.Row="3" Grid.Column="2" Text="Ground speed" Style="{StaticResource Label}" />
-                            <TextBlock Grid.Row="3" Grid.Column="3" Text="{Binding GroundSpeedText}" Style="{StaticResource Value}" />
-
-                            <TextBlock Grid.Row="4" Text="Heading" Style="{StaticResource Label}" />
-                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding HeadingText}" Style="{StaticResource Value}" />
-                            <TextBlock Grid.Row="4" Grid.Column="2" Text="Passengers" Style="{StaticResource Label}" />
-                            <TextBlock Grid.Row="4" Grid.Column="3" Text="{Binding PassengersText}" Style="{StaticResource Value}" />
-
-                            <TextBlock Grid.Row="5" Text="Fuel" Style="{StaticResource Label}" />
-                            <TextBlock Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding FuelText}" Style="{StaticResource Value}" />
-                        </Grid>
+            <!-- Gate: stand, jetway/stairs/ground power, doors -->
+            <TabItem AutomationProperties.Name="Gate">
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Gate" />
+                        <Ellipse Style="{StaticResource TabBusyDot}" Visibility="{Binding GateBusy, Converter={StaticResource VisibleWhen}}" />
                     </StackPanel>
-                </Border>
-
-                <!-- Ground services -->
-                <Border Style="{StaticResource Card}">
+                </TabItem.Header>
+                <ScrollViewer Style="{StaticResource TabPage}">
                     <StackPanel>
-                        <TextBlock Text="GROUND SERVICES" Style="{StaticResource SectionTitle}" Margin="0,0,0,6" />
-                        <TextBlock Text="Services become available once the simulator and the user aircraft are ready."
-                                   Style="{StaticResource Muted}" TextWrapping="Wrap"
-                                   Visibility="{Binding HasServices, Converter={StaticResource CollapsedWhen}}" />
-                        <ItemsControl ItemsSource="{Binding Services}" Grid.IsSharedSizeScope="True" Focusable="False">
-                            <ItemsControl.ItemTemplate>
-                                <!-- Separator line between services; the content picks its template by view model type. -->
-                                <DataTemplate>
-                                    <Border x:Name="Row" BorderBrush="{StaticResource CardBorder}" BorderThickness="0,1,0,0" Padding="0,8,0,8">
-                                        <ContentPresenter Content="{Binding}" />
-                                    </Border>
-                                    <DataTemplate.Triggers>
-                                        <DataTrigger Binding="{Binding RelativeSource={RelativeSource PreviousData}}" Value="{x:Null}">
-                                            <Setter TargetName="Row" Property="BorderThickness" Value="0" />
-                                            <Setter TargetName="Row" Property="Padding" Value="0,0,0,8" />
-                                        </DataTrigger>
-                                    </DataTemplate.Triggers>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </Border>
+                        <Border Style="{StaticResource Card}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="Stand" Style="{StaticResource Label}" />
+                                <TextBlock Grid.Column="1" Text="{Binding StandText}" Style="{StaticResource Value}" />
+                                <TextBlock Grid.Row="1" Text="Jetway" Style="{StaticResource Label}" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding JetwayText}" Style="{StaticResource Value}" />
+                            </Grid>
+                        </Border>
 
-                <!-- Doors -->
-                <Border Style="{StaticResource Card}" Visibility="{Binding HasDoors, Converter={StaticResource VisibleWhen}}">
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="EQUIPMENT" Style="{StaticResource SectionTitle}" Margin="0,0,0,6" />
+                                <TextBlock Text="Available once the simulator and the user aircraft are ready."
+                                           Style="{StaticResource Muted}" TextWrapping="Wrap"
+                                           Visibility="{Binding HasServices, Converter={StaticResource CollapsedWhen}}" />
+                                <ItemsControl ItemsSource="{Binding GateServices}" ItemTemplate="{StaticResource ServiceRow}"
+                                              Grid.IsSharedSizeScope="True" Focusable="False" />
+                                <ItemsControl ItemsSource="{Binding OtherServices}" ItemTemplate="{StaticResource ServiceRow}"
+                                              Grid.IsSharedSizeScope="True" Focusable="False" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Visibility="{Binding HasDoors, Converter={StaticResource VisibleWhen}}">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <Button DockPanel.Dock="Right" Content="Close all" Command="{Binding CloseAllDoorsCommand}"
+                                            AutomationProperties.Name="Close all doors" />
+                                    <TextBlock Text="DOORS" Style="{StaticResource SectionTitle}" />
+                                </DockPanel>
+                                <ItemsControl ItemsSource="{Binding Doors}" Margin="0,0,-12,0" Focusable="False" Grid.IsSharedSizeScope="True">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <UniformGrid Columns="2" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Boarding -->
+            <TabItem AutomationProperties.Name="Boarding">
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Boarding" />
+                        <Ellipse Style="{StaticResource TabBusyDot}"
+                                 Visibility="{Binding Passengers.IsBusy, Converter={StaticResource VisibleWhen}, FallbackValue=Collapsed}" />
+                    </StackPanel>
+                </TabItem.Header>
+                <ScrollViewer Style="{StaticResource TabPage}">
                     <StackPanel>
-                        <DockPanel Margin="0,0,0,6">
-                            <Button DockPanel.Dock="Right" Content="Close all" Command="{Binding CloseAllDoorsCommand}"
-                                    AutomationProperties.Name="Close all doors" />
-                            <TextBlock Text="DOORS" Style="{StaticResource SectionTitle}" />
-                        </DockPanel>
-                        <ItemsControl ItemsSource="{Binding Doors}" Margin="0,0,-12,0" Focusable="False" Grid.IsSharedSizeScope="True">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <UniformGrid Columns="2" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                        </ItemsControl>
+                        <!-- SimBrief flight plan: passengers, cargo and block fuel for boarding and refueling -->
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <Button Content="Load anyway" Command="{Binding ForceLoadFlightPlanCommand}" Style="{StaticResource ActionButton}"
+                                                AutomationProperties.Name="Load the refused flight plan anyway"
+                                                Visibility="{Binding CanForceLoadFlightPlan, Converter={StaticResource VisibleWhen}}" />
+                                        <Button Content="Load from SimBrief" Command="{Binding LoadFlightPlanCommand}" Style="{StaticResource PrimaryAction}"
+                                                AutomationProperties.Name="Load flight plan from SimBrief" />
+                                    </StackPanel>
+                                    <TextBlock Text="FLIGHT PLAN" Style="{StaticResource SectionTitle}" VerticalAlignment="Center" />
+                                </DockPanel>
+                                <TextBlock Text="{Binding FlightPlanText}" Style="{StaticResource Value}" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding FlightPlanNotes}" Foreground="{StaticResource Warn}" TextWrapping="Wrap" Margin="0,6,0,0"
+                                           Visibility="{Binding HasFlightPlanNotes, Converter={StaticResource VisibleWhen}}" />
+                                <TextBlock Text="{Binding FlightPlanHint}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="On board" Style="{StaticResource Label}" />
+                                <TextBlock Grid.Column="1" Text="{Binding PassengersText}" Style="{StaticResource Value}" />
+                            </Grid>
+                        </Border>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <ContentControl Content="{Binding Passengers}" Focusable="False" Grid.IsSharedSizeScope="True" />
+                                <TextBlock Text="Jetway or stairs must be connected. Cargo doors open and close automatically when the aircraft supports it."
+                                           Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,10,0,0" />
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
-                </Border>
+                </ScrollViewer>
+            </TabItem>
 
-                <!-- Fake simulator -->
-                <Border Style="{StaticResource Card}" Visibility="{Binding UsingFakeSim, Converter={StaticResource VisibleWhen}}">
+            <!-- Refueling -->
+            <TabItem AutomationProperties.Name="Refueling">
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Refueling" />
+                        <Ellipse Style="{StaticResource TabBusyDot}"
+                                 Visibility="{Binding Refueling.IsBusy, Converter={StaticResource VisibleWhen}, FallbackValue=Collapsed}" />
+                    </StackPanel>
+                </TabItem.Header>
+                <ScrollViewer Style="{StaticResource TabPage}">
                     <StackPanel>
-                        <TextBlock Text="FAKE SIMULATOR" Style="{StaticResource SectionTitle}" Margin="0,0,0,6" />
-                        <WrapPanel>
-                            <Button Content="{Binding ParkingBrakeButtonText}" Command="{Binding ToggleParkingBrakeCommand}" Style="{StaticResource ActionButton}" />
-                            <Button Content="{Binding EnginesButtonText}" Command="{Binding ToggleEnginesCommand}" Style="{StaticResource ActionButton}" />
-                            <Button Content="{Binding DcPowerButtonText}" Command="{Binding ToggleDcPowerCommand}" Style="{StaticResource ActionButton}"
-                                    Visibility="{Binding HasFakePmdg, Converter={StaticResource VisibleWhen}}" />
-                        </WrapPanel>
+                        <Border Style="{StaticResource Card}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="Fuel" Style="{StaticResource Label}" />
+                                <TextBlock Grid.Column="1" Text="{Binding FuelText}" Style="{StaticResource Value}" />
+                                <TextBlock Grid.Row="1" Text="Engines" Style="{StaticResource Label}" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding EnginesText}" Style="{StaticResource Value}" />
+                            </Grid>
+                        </Border>
+                        <Border Style="{StaticResource Card}">
+                            <ContentControl Content="{Binding Refueling}" Focusable="False" Grid.IsSharedSizeScope="True" />
+                        </Border>
                     </StackPanel>
-                </Border>
+                </ScrollViewer>
+            </TabItem>
 
-            </StackPanel>
-        </ScrollViewer>
+            <!-- Pushback -->
+            <TabItem AutomationProperties.Name="Pushback">
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Pushback" />
+                        <Ellipse Style="{StaticResource TabBusyDot}"
+                                 Visibility="{Binding Pushback.IsBusy, Converter={StaticResource VisibleWhen}, FallbackValue=Collapsed}" />
+                    </StackPanel>
+                </TabItem.Header>
+                <ScrollViewer Style="{StaticResource TabPage}">
+                    <StackPanel>
+                        <Border Style="{StaticResource Card}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="Parking brake" Style="{StaticResource Label}" />
+                                <TextBlock Grid.Column="1" Text="{Binding ParkingBrakeText}" Style="{StaticResource Value}" />
+                                <TextBlock Grid.Column="2" Text="Ground speed" Style="{StaticResource Label}" />
+                                <TextBlock Grid.Column="3" Text="{Binding GroundSpeedText}" Style="{StaticResource Value}" />
+                                <TextBlock Grid.Row="1" Text="Heading" Style="{StaticResource Label}" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding HeadingText}" Style="{StaticResource Value}" />
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="On ground" Style="{StaticResource Label}" />
+                                <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding OnGroundText}" Style="{StaticResource Value}" />
+                            </Grid>
+                        </Border>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <ContentControl Content="{Binding Pushback}" Focusable="False" Grid.IsSharedSizeScope="True" />
+                                <TextBlock Text="Jetway, stairs and ground power must be disconnected and all doors closed. Release the parking brake once the tug is connected."
+                                           Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,10,0,0" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Settings, saved in %APPDATA%\Rampside\settings.json -->
+            <TabItem Header="Settings" AutomationProperties.Name="Settings">
+                <ScrollViewer Style="{StaticResource TabPage}">
+                    <StackPanel>
+                        <!-- Reposition: search a stand of the current airport and move the aircraft there. -->
+                        <Border Style="{StaticResource Card}" DataContext="{Binding Reposition}">
+                            <StackPanel>
+                                <TextBlock Text="REPOSITION" Style="{StaticResource SectionTitle}" Margin="0,0,0,6" />
+                                <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}" Tag="Search stand, e.g. 121"
+                                         AutomationProperties.Name="Search stand"
+                                         Visibility="{Binding HasParkings, Converter={StaticResource VisibleWhen}}" />
+                                <ItemsControl ItemsSource="{Binding Results}" Focusable="False" Margin="0,6,0,0">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,0,0,6">
+                                                <Button Content="{Binding Name}" Command="{Binding SelectCommand}" Style="{StaticResource ActionButton}"
+                                                        Visibility="{Binding IsSelected, Converter={StaticResource CollapsedWhen}}"
+                                                        AutomationProperties.Name="{Binding Name}" />
+                                                <Button Content="{Binding Name}" Command="{Binding SelectCommand}" Style="{StaticResource PrimaryAction}"
+                                                        Visibility="{Binding IsSelected, Converter={StaticResource VisibleWhen}}"
+                                                        AutomationProperties.Name="{Binding Name, StringFormat='{}{0}, selected'}" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="{Binding Hint}" Style="{StaticResource Muted}" TextWrapping="Wrap" />
+                                <DockPanel Margin="0,6,0,0" Visibility="{Binding HasParkings, Converter={StaticResource VisibleWhen}}">
+                                    <Button DockPanel.Dock="Right" Content="Move aircraft" Command="{Binding MoveCommand}"
+                                            Style="{StaticResource PrimaryAction}" Margin="0" />
+                                    <TextBlock Text="{Binding SelectedText}" Style="{StaticResource Value}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" DataContext="{Binding Settings}">
+                            <StackPanel>
+                                <TextBlock Text="SIMBRIEF" Style="{StaticResource SectionTitle}" Margin="0,0,0,6" />
+                                <TextBlock Text="Pilot ID or username" Style="{StaticResource Label}" Margin="0,0,0,4" />
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox Width="220" Margin="0,0,6,0" Tag="e.g. 123456 or MYNAME" AutomationProperties.Name="SimBrief pilot ID or username"
+                                             Text="{Binding SimBriefUser, UpdateSourceTrigger=PropertyChanged}">
+                                        <TextBox.InputBindings>
+                                            <KeyBinding Key="Return" Command="{Binding SaveCommand}" />
+                                        </TextBox.InputBindings>
+                                    </TextBox>
+                                    <Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryAction}"
+                                            AutomationProperties.Name="Save SimBrief user" />
+                                    <Button Content="Test" Command="{Binding TestSimBriefCommand}" Style="{StaticResource ActionButton}"
+                                            AutomationProperties.Name="Test SimBrief user" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding SimBriefResult}" TextWrapping="Wrap" Margin="0,8,0,0"
+                                           Visibility="{Binding HasSimBriefResult, Converter={StaticResource VisibleWhen}}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{StaticResource Good}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SimBriefResultIsError}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource Bad}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0"
+                                           Text="Your pilot ID is on simbrief.com under Account Settings. Rampside loads your latest plan only when you press Load on the Boarding tab." />
+                                <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0" FontSize="11"
+                                           Text="{Binding SettingsPath, StringFormat=Saved in {0}}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Ground crew voice: on/off and a sample line -->
+                        <Border Style="{StaticResource Card}" DataContext="{Binding Settings}">
+                            <StackPanel>
+                                <TextBlock Text="GROUND CREW VOICE" Style="{StaticResource SectionTitle}" Margin="0,0,0,6" />
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox Content="Crew talks to the cockpit" Style="{StaticResource Switch}" VerticalAlignment="Center"
+                                              IsChecked="{Binding CrewVoiceEnabled}" IsEnabled="{Binding HasCrewVoice}"
+                                              AutomationProperties.Name="Ground crew voice" Margin="0,0,12,0" />
+                                    <Button Content="Play sample" Command="{Binding PlayCrewVoiceSampleCommand}" Style="{StaticResource ActionButton}"
+                                            AutomationProperties.Name="Play a ground crew voice sample" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding CrewVoiceNote}" Foreground="{StaticResource Bad}" TextWrapping="Wrap" Margin="0,8,0,0"
+                                           Visibility="{Binding HasCrewVoiceNote, Converter={StaticResource VisibleWhen}}" />
+                                <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0" Text="{Binding CrewVoiceHint}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Fake simulator tools -->
+            <TabItem Header="Test" AutomationProperties.Name="Test"
+                     Visibility="{Binding UsingFakeSim, Converter={StaticResource VisibleWhen}}">
+                <ScrollViewer Style="{StaticResource TabPage}">
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="FAKE SIMULATOR" Style="{StaticResource SectionTitle}" Margin="0,0,0,6" />
+                            <WrapPanel>
+                                <Button Content="{Binding ParkingBrakeButtonText}" Command="{Binding ToggleParkingBrakeCommand}" Style="{StaticResource ActionButton}" />
+                                <Button Content="{Binding EnginesButtonText}" Command="{Binding ToggleEnginesCommand}" Style="{StaticResource ActionButton}" />
+                                <Button Content="{Binding DcPowerButtonText}" Command="{Binding ToggleDcPowerCommand}" Style="{StaticResource ActionButton}"
+                                        Visibility="{Binding HasFakePmdg, Converter={StaticResource VisibleWhen}}" />
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
 
         <GridSplitter Grid.Row="4" Height="6" HorizontalAlignment="Stretch" Background="Transparent" Focusable="False"
                       ResizeBehavior="PreviousAndNext" ResizeDirection="Rows" />
@@ -438,11 +647,15 @@
         <Border Grid.Row="5" Style="{StaticResource Card}" Margin="14,0,14,14" Padding="8,8,2,8">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Text="LOG" Style="{StaticResource SectionTitle}" Margin="4,0,0,4" />
-                <ListBox x:Name="LogList" ItemsSource="{Binding Log}" Background="Transparent" BorderThickness="0"
-                         Foreground="{StaticResource TextPrimary}" FontFamily="{StaticResource MonoFont}" FontSize="12"
-                         SelectionMode="Extended" ItemContainerStyle="{StaticResource LogItem}"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.IsVirtualizing="False" ScrollViewer.CanContentScroll="False"
-                         ScrollViewer.ScrollChanged="OnLogScrollChanged" AutomationProperties.Name="Log" />
+                <!-- Read-only rich text, so lines can be selected with the mouse and copied (Ctrl+C or right click). -->
+                <RichTextBox x:Name="LogBox" IsReadOnly="True" IsReadOnlyCaretVisible="False" IsUndoEnabled="False"
+                             Background="Transparent" BorderThickness="0" Padding="0"
+                             Foreground="{StaticResource TextPrimary}" FontFamily="{StaticResource MonoFont}" FontSize="12"
+                             SelectionBrush="{StaticResource Accent}" SelectionOpacity="0.35"
+                             VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.ScrollChanged="OnLogScrollChanged" AutomationProperties.Name="Log">
+                    <FlowDocument x:Name="LogDocument" PagePadding="0" />
+                </RichTextBox>
             </DockPanel>
         </Border>
     </Grid>

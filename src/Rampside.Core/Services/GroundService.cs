@@ -54,6 +54,9 @@ public abstract class GroundService
     /// <summary>Raised when <see cref="Status"/> or <see cref="Detail"/> changes (not on progress).</summary>
     public event EventHandler? Changed;
 
+    /// <summary>Raised when the crew of this service talks to the cockpit.</summary>
+    public event EventHandler<CrewCall>? CrewCalled;
+
     public abstract void Tick(ServiceContext context, TimeSpan elapsed);
 
     public virtual void Abort(ServiceContext context)
@@ -75,4 +78,9 @@ public abstract class GroundService
         Detail = detail;
         Changed?.Invoke(this, EventArgs.Empty);
     }
+
+    protected void Say(params string[] phrases) => CrewCalled?.Invoke(this, new CrewCall(Id, phrases));
+
+    /// <summary>First words of a new crew member, e.g. when a new tug is on its way.</summary>
+    protected void SayAsNewCrew(params string[] phrases) => CrewCalled?.Invoke(this, new CrewCall(Id, phrases, NewCrew: true));
 }

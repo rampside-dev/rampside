@@ -8,6 +8,9 @@
   "name": "Example narrow-body",
   "match": ["Rampside Test Aircraft"],
 
+  // ICAO type designators; flight plans for other types are refused. Leave out to use the sim's ATC MODEL.
+  "icaoTypes": ["A320"],
+
   "passengers": {
     "capacity": 180,
     "weightKg": 84,

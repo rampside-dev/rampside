@@ -78,9 +78,40 @@ public sealed class PmdgDataBlock
     }
 }
 
-/// <summary>Text content of a PMDG CDU screen.</summary>
-public sealed record PmdgCduScreen(IReadOnlyList<string> Lines, bool Powered)
+/// <summary>
+/// Content of a PMDG CDU screen: text per row and, when known, colour and flags per cell
+/// (PMDG_NG3_CDU_COLOR_*, PMDG_NG3_CDU_FLAG_*). Selected options are often shown only by font size or colour.
+/// </summary>
+public sealed record PmdgCduScreen(
+    IReadOnlyList<string> Lines,
+    bool Powered,
+    IReadOnlyList<byte[]>? Colors = null,
+    IReadOnlyList<byte[]>? Flags = null)
 {
+    public const byte SmallFont = 0x01;
+    public const byte Reverse = 0x02;
+    public const byte Unused = 0x04;
+
+    public bool IsSmall(int row, int column) => Flags is { } f && (f[row][column] & SmallFont) != 0;
+
+    public byte ColorAt(int row, int column) => Colors is { } c ? c[row][column] : (byte)0;
+
+    /// <summary>
+    /// One letter per cell for diagnostics: colour W C G M A R (white, cyan, green, magenta, amber, red),
+    /// lower case for the small font, a space for blank cells.
+    /// </summary>
+    public string Style(int row)
+    {
+        var chars = new char[Lines[row].Length];
+        for (var column = 0; column < chars.Length; column++)
+        {
+            var letter = "WCGMAR"[Math.Min(ColorAt(row, column), (byte)5)];
+            chars[column] = Lines[row][column] == ' ' ? ' ' : IsSmall(row, column) ? char.ToLowerInvariant(letter) : letter;
+        }
+
+        return new string(chars);
+    }
+
     /// <summary>Decodes a CDU screen struct of the form <c>Cell Cells[COLUMNS][ROWS]; bool Powered;</c>.</summary>
     public static PmdgCduScreen? Decode(PmdgSdkHeader header, string screenStruct, byte[] data)
     {
@@ -92,27 +123,36 @@ public sealed record PmdgCduScreen(IReadOnlyList<string> Lines, bool Powered)
             return null;
         }
 
-        var symbol = header.GetStruct(cells.TypeName).Find("Symbol");
+        var cell = header.GetStruct(cells.TypeName);
+        var symbol = cell.Find("Symbol");
         if (symbol is null)
         {
             return null;
         }
 
+        var color = cell.Find("Color");
+        var flags = cell.Find("Flags");
         int columns = cells.Dimensions[0], rows = cells.Dimensions[1];
         var lines = new string[rows];
+        var colors = new byte[rows][];
+        var cellFlags = new byte[rows][];
         for (var row = 0; row < rows; row++)
         {
             var sb = new StringBuilder(columns);
+            colors[row] = new byte[columns];
+            cellFlags[row] = new byte[columns];
             for (var column = 0; column < columns; column++)
             {
-                var offset = cells.Offset + (column * rows + row) * cells.ElementSize + symbol.Offset;
-                sb.Append(ToChar(data[offset]));
+                var start = cells.Offset + (column * rows + row) * cells.ElementSize;
+                sb.Append(ToChar(data[start + symbol.Offset]));
+                colors[row][column] = color is null ? (byte)0 : data[start + color.Offset];
+                cellFlags[row][column] = flags is null ? (byte)0 : data[start + flags.Offset];
             }
 
             lines[row] = sb.ToString();
         }
 
-        return new PmdgCduScreen(lines, powered is not null && data[powered.Offset] != 0);
+        return new PmdgCduScreen(lines, powered is not null && data[powered.Offset] != 0, colors, cellFlags);
     }
 
     private static char ToChar(byte b) => b switch

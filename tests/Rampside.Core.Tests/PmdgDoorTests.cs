@@ -19,7 +19,7 @@ public class PmdgDoorTests
         rig.Run(3);
 
         Assert.True(result.Accepted, result.Message);
-        Assert.Equal(new[] { "EVT_DOOR_FWD_L" }, rig.Pmdg!.SentEvents);
+        Assert.Equal(new[] { "EVT_DOOR_FWD_L" }, rig.Pmdg!.DoorEvents);
         Assert.Equal(DoorState.Open, rig.Orchestrator.Adapter.GetDoorState(DoorId.ForwardLeft));
     }
 
@@ -33,7 +33,7 @@ public class PmdgDoorTests
         rig.Orchestrator.SetDoor(DoorId.CargoAft, open: true);
         rig.Run(2);
 
-        Assert.Single(rig.Pmdg!.SentEvents);
+        Assert.Single(rig.Pmdg!.DoorEvents);
         Assert.Equal(DoorState.Open, rig.Orchestrator.Adapter.GetDoorState(DoorId.CargoAft));
     }
 
@@ -47,7 +47,7 @@ public class PmdgDoorTests
         var result = rig.Orchestrator.SetDoor(DoorId.ForwardLeft, open: true);
 
         Assert.False(result.Accepted);
-        Assert.Empty(link.SentEvents);
+        Assert.Empty(link.DoorEvents);
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public class PmdgDoorTests
         Assert.Equal(DoorState.Open, rig.Orchestrator.Adapter.GetDoorState(DoorId.ForwardLeft));
 
         rig.Orchestrator.ToggleJetway();
-        rig.Run(3);
+        rig.Run(12); // the door was opened moments ago; the PMDG ignores toggles while a door moves
         Assert.Equal(DoorState.Closed, rig.Orchestrator.Adapter.GetDoorState(DoorId.ForwardLeft));
         Assert.Equal(ServiceStatus.Idle, rig.Orchestrator.Jetway.Status);
     }
@@ -99,13 +99,13 @@ public class PmdgDoorTests
     [Fact]
     public void Pushback_is_refused_while_a_door_is_open()
     {
-        var rig = CreateRig();
+        var rig = CreateRig(new FakePmdgLink(TimeSpan.FromSeconds(2)) { ChocksSet = false }); // only the door is in the way
         rig.Orchestrator.SetDoor(DoorId.AftRight, open: true);
         rig.Run(3);
 
         var refused = rig.Orchestrator.RequestPushback();
         rig.Orchestrator.CloseAllDoors();
-        rig.Run(3);
+        rig.Run(13);
         var accepted = rig.Orchestrator.RequestPushback();
 
         Assert.False(refused.Accepted);
@@ -155,5 +155,40 @@ public class PmdgDoorTests
         Assert.Equal("pmdg-737", profile.Id);
         Assert.Equal(AircraftProfile.Pmdg737Adapter, profile.Adapter);
         Assert.Equal(new[] { DoorId.ForwardLeft, DoorId.AftLeft }, profile.Doors.Stairs);
+    }
+
+    [Fact]
+    public void Close_right_after_open_waits_until_the_door_has_finished_moving()
+    {
+        var rig = CreateRig();
+
+        rig.Orchestrator.SetDoor(DoorId.ForwardRight, open: true);
+        rig.Run(3);
+        var close = rig.Orchestrator.SetDoor(DoorId.ForwardRight, open: false);
+        rig.Run(5);
+        Assert.Equal(DoorState.Open, rig.Orchestrator.Adapter.GetDoorState(DoorId.ForwardRight));
+        Assert.Single(rig.Pmdg!.DoorEvents);
+
+        rig.Run(8);
+
+        Assert.True(close.Accepted, close.Message);
+        Assert.Equal(DoorState.Closed, rig.Orchestrator.Adapter.GetDoorState(DoorId.ForwardRight));
+        Assert.Equal(2, rig.Pmdg.DoorEvents.Count);
+    }
+
+    [Fact]
+    public void Lost_door_event_is_sent_again()
+    {
+        var link = new FakePmdgLink(TimeSpan.FromSeconds(2)) { IgnoreNextDoorEvents = 1 };
+        var rig = CreateRig(link);
+
+        rig.Orchestrator.SetDoor(DoorId.AftLeft, open: true);
+        rig.Run(5);
+        Assert.Equal(DoorState.Closed, rig.Orchestrator.Adapter.GetDoorState(DoorId.AftLeft));
+
+        rig.Run(10);
+
+        Assert.Equal(2, link.DoorEvents.Count);
+        Assert.Equal(DoorState.Open, rig.Orchestrator.Adapter.GetDoorState(DoorId.AftLeft));
     }
 }

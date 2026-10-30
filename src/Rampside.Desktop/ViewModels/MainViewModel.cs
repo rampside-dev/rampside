@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Rampside.Core.Aircraft.Pmdg;
+using Rampside.Core.FlightPlans;
 using Rampside.Core.Orchestration;
 using Rampside.Core.Simulation;
 using Rampside.Hosting;
@@ -49,14 +50,22 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     private string? _statusMessage;
     private bool _statusIsError;
     private string _statusTime = string.Empty;
+    private string _flightPlanText = "None loaded";
+    private string? _flightPlanNotes;
+    private FlightPlan? _refusedPlan;
 
-    public MainViewModel(RampsideHost host)
+    public MainViewModel(RampsideHost host, RampsideSettings settings)
     {
         _host = host;
         _dispatcher = Dispatcher.CurrentDispatcher;
         HasFakePmdg = host.Pmdg is FakePmdgLink;
+        Settings = new SettingsViewModel(host, settings);
+
+        LoadFlightPlanCommand = new AsyncCommand(() => LoadFlightPlanAsync(), () => _host.SimBriefUser is not null);
+        ForceLoadFlightPlanCommand = new AsyncCommand(ForceLoadFlightPlanAsync, () => _refusedPlan is not null);
 
         CloseAllDoorsCommand = new AsyncCommand(() => RunAsync(o => o.CloseAllDoors()));
+        Reposition = new RepositionViewModel(this);
         ToggleParkingBrakeCommand = new AsyncCommand(
             () => ChangeFakeSimAsync(s => s with { ParkingBrakeSet = !s.ParkingBrakeSet }, s => $"Parking brake {(s.ParkingBrakeSet ? "set" : "released")}."),
             () => _host.Fake is not null);
@@ -71,6 +80,19 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     public ObservableCollection<ServiceViewModel> Services { get; } = new();
+
+    // The same service rows, sorted onto the tabs: equipment on the Gate tab, one service per other tab.
+    public ObservableCollection<ServiceViewModel> GateServices { get; } = new();
+    public ObservableCollection<ServiceViewModel> OtherServices { get; } = new();
+    public PassengersViewModel? Passengers { get; private set; }
+    public RefuelingViewModel? Refueling { get; private set; }
+    public PushbackViewModel? Pushback { get; private set; }
+
+    /// <summary>Move the aircraft to another stand of the current airport.</summary>
+    public RepositionViewModel Reposition { get; }
+
+    /// <summary>True while jetway, stairs or ground power are connected or moving.</summary>
+    public bool GateBusy => GateServices.Any(s => s.IsBusy);
     public ObservableCollection<DoorViewModel> Doors { get; } = new();
     public ObservableCollection<LogEntry> Log { get; } = new();
 
@@ -78,6 +100,35 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public AsyncCommand ToggleParkingBrakeCommand { get; }
     public AsyncCommand ToggleEnginesCommand { get; }
     public AsyncCommand ToggleDcPowerCommand { get; }
+
+    public SettingsViewModel Settings { get; }
+
+    /// <summary>Fetches the latest SimBrief plan and hands it to the orchestrator, which checks it.</summary>
+    public AsyncCommand LoadFlightPlanCommand { get; }
+
+    /// <summary>Loads the plan that was just refused (other aircraft type or airport) anyway.</summary>
+    public AsyncCommand ForceLoadFlightPlanCommand { get; }
+
+    public string FlightPlanText { get => _flightPlanText; private set => Set(ref _flightPlanText, value); }
+
+    /// <summary>Warnings and unchecked points of the loaded plan, or null.</summary>
+    public string? FlightPlanNotes
+    {
+        get => _flightPlanNotes;
+        private set
+        {
+            if (Set(ref _flightPlanNotes, value))
+            {
+                OnPropertyChanged(nameof(HasFlightPlanNotes));
+            }
+        }
+    }
+
+    public bool HasFlightPlanNotes => !string.IsNullOrEmpty(FlightPlanNotes);
+    public bool CanForceLoadFlightPlan => _refusedPlan is not null;
+    public string FlightPlanHint => _host.SimBriefUser is null
+        ? "Enter your SimBrief pilot ID or username on the Settings tab first."
+        : "Boarding and refueling use the plan when no amount is entered.";
 
     public ConnectionKind Connection
     {
@@ -199,6 +250,46 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         return result.Accepted;
     }
 
+    private async Task LoadFlightPlanAsync()
+    {
+        SetRefusedPlan(null);
+        FlightPlan plan;
+        try
+        {
+            plan = await _host.FetchSimBriefAsync(_host.SimBriefUser ?? string.Empty);
+        }
+        catch (SimBriefException ex)
+        {
+            ShowResult(CommandResult.Rejected(ex.Message));
+            return;
+        }
+
+        if (!await RunAsync(o => o.LoadFlightPlan(plan)))
+        {
+            // Only a mismatch or passengers on board refuse an otherwise valid plan; both can be overridden.
+            SetRefusedPlan(plan);
+        }
+    }
+
+    private async Task ForceLoadFlightPlanAsync()
+    {
+        if (_refusedPlan is not { } plan)
+        {
+            return;
+        }
+
+        if (await RunAsync(o => o.LoadFlightPlan(plan, force: true)))
+        {
+            SetRefusedPlan(null);
+        }
+    }
+
+    private void SetRefusedPlan(FlightPlan? plan)
+    {
+        _refusedPlan = plan;
+        OnPropertyChanged(nameof(CanForceLoadFlightPlan));
+    }
+
     public void ShowResult(CommandResult result)
     {
         var now = DateTime.Now;
@@ -289,6 +380,16 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             ? $"{Format.Whole(snapshot.PassengersOnBoard)} / {Format.Whole(snapshot.PassengerCapacity)}"
             : Format.None;
 
+        FlightPlanText = snapshot.FlightPlan is { } plan
+            ? $"{FlightPlanFormat.Title(plan)}{Environment.NewLine}{FlightPlanFormat.Load(plan)}"
+            : "None loaded";
+        FlightPlanNotes = snapshot.FlightPlanReview is { } review
+            ? string.Join(Environment.NewLine, review.Blockers.Select(b => $"Loaded despite: {b}")
+                .Concat(review.Warnings)
+                .Concat(review.NotChecked.Count > 0 ? new[] { $"Not checked: {string.Join(", ", review.NotChecked)}." } : Array.Empty<string>()))
+            : null;
+        OnPropertyChanged(nameof(FlightPlanHint));
+
         _parkingBrakeSet = aircraft.ParkingBrakeSet;
         _enginesRunning = aircraft.EnginesRunning;
         OnPropertyChanged(nameof(ParkingBrakeButtonText));
@@ -296,6 +397,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
         SyncServices(snapshot);
         SyncDoors(snapshot);
+        Reposition.Update(snapshot);
         CommandManager.InvalidateRequerySuggested();
     }
 
@@ -328,6 +430,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
                 Services.Add(CreateService(service));
             }
 
+            SortServicesOntoTabs();
             OnPropertyChanged(nameof(HasServices));
         }
 
@@ -335,6 +438,43 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         {
             Services[i].Update(services[i], snapshot);
         }
+
+        OnPropertyChanged(nameof(GateBusy));
+    }
+
+    private void SortServicesOntoTabs()
+    {
+        GateServices.Clear();
+        OtherServices.Clear();
+        Passengers = null;
+        Refueling = null;
+        Pushback = null;
+
+        foreach (var service in Services)
+        {
+            switch (service)
+            {
+                case ConnectableServiceViewModel:
+                    GateServices.Add(service);
+                    break;
+                case PassengersViewModel passengers:
+                    Passengers = passengers;
+                    break;
+                case RefuelingViewModel refueling:
+                    Refueling = refueling;
+                    break;
+                case PushbackViewModel pushback:
+                    Pushback = pushback;
+                    break;
+                default:
+                    OtherServices.Add(service);
+                    break;
+            }
+        }
+
+        OnPropertyChanged(nameof(Passengers));
+        OnPropertyChanged(nameof(Refueling));
+        OnPropertyChanged(nameof(Pushback));
     }
 
     private ServiceViewModel CreateService(ServiceSnapshot service) => service.Id switch
@@ -342,6 +482,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         "jetway" => new ConnectableServiceViewModel(this, service, o => o.ToggleJetway()),
         "stairs" => new ConnectableServiceViewModel(this, service, o => o.ToggleStairs()),
         "gpu" => new ConnectableServiceViewModel(this, service, o => o.ToggleGpu()),
+        "chocks" => new ConnectableServiceViewModel(this, service, o => o.ToggleChocks(), ToggleLabels.Chocks),
         "refuel" => new RefuelingViewModel(this, service),
         "passengers" => new PassengersViewModel(this, service),
         "pushback" => new PushbackViewModel(this, service),

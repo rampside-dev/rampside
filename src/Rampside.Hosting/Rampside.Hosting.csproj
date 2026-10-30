@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <None Include="..\..\profiles\*.json" LinkBase="profiles" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\assets\audio\groundcrew\**\*.wav;..\..\assets\audio\groundcrew\phrases.json"
+          LinkBase="audio\groundcrew" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

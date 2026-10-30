@@ -3,6 +3,7 @@
 //   [SDK]
 //   EnableDataBroadcast=1
 //   EnableCDUBroadcast.0=1
+//   EnableCDUBroadcast.1=1   (right CDU: Rampside requests stairs and ground power there)
 //
 // The PMDG 737 title does not contain "PMDG" (e.g. "737-800 PAX SSW SC"), so it is matched by variant.
 {
@@ -10,6 +11,24 @@
   "name": "PMDG 737",
   "match": ["737-800 PAX", "737-800 BCF", "737-800 BDSF", "737-800 BBJ", "PMDG 737"],
   "adapter": "pmdg-737",
+  // The family sets the procedure per job (doors pmdg-sdk, jetway sim, stairs, groundPower and chocks pmdg-cdu,
+  // fuel and payload none). Change single jobs here, e.g. "procedures": { "stairs": "sim" }.
+
+  // Flight plans (SimBrief) for other types are refused. The match list above only covers the -800.
+  "icaoTypes": ["B738"],
+
+  // Door mapping, verified in MSFS 2024 on 30 Oct 2026 with the aircraft powered: the event toggles the door,
+  // the indicator (overhead door light) is on while the door is not closed. Lights come on within 0.5 s;
+  // closing takes about 10 s (L1), 5 s (R1, L2, R2) and 3 s (cargo doors).
+  // Left out: airstair (did not retract on its event), overwing exits (no reaction on the ground).
+  "doorMap": [
+    { "door": "forwardLeft",  "event": "EVT_DOOR_FWD_L",     "indicator": "DOOR_annunFWD_ENTRY" },
+    { "door": "forwardRight", "event": "EVT_DOOR_FWD_R",     "indicator": "DOOR_annunFWD_SERVICE" },
+    { "door": "aftLeft",      "event": "EVT_DOOR_AFT_L",     "indicator": "DOOR_annunAFT_ENTRY" },
+    { "door": "aftRight",     "event": "EVT_DOOR_AFT_R",     "indicator": "DOOR_annunAFT_SERVICE" },
+    { "door": "cargoForward", "event": "EVT_DOOR_CARGO_FWD", "indicator": "DOOR_annunFWD_CARGO" },
+    { "door": "cargoAft",     "event": "EVT_DOOR_CARGO_AFT", "indicator": "DOOR_annunAFT_CARGO" }
+  ],
 
   "doors": {
     "automatic": true,
@@ -26,7 +45,9 @@
 
   "pushback": {
     "wheelbaseMeters": 15.6,
-    "maxSteeringDeg": 65
+    "maxSteeringDeg": 65,
+    // Nose wheel contact point in the PMDG flight_model.cfg: 40.21 ft ahead of the reference point.
+    "noseGearForwardMeters": 12.26
   },
 
   "jetway": { "connectSeconds": 30, "disconnectSeconds": 20 },

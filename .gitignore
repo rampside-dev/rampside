@@ -10,3 +10,7 @@ TestResults/
 # SimConnect binaries come from the MSFS SDK, never commit them
 SimConnect.dll
 Microsoft.FlightSimulator.SimConnect.dll
+
+# Agent worktrees and Python caches
+.claude/worktrees/
+__pycache__/

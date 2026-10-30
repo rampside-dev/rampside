@@ -30,13 +30,15 @@ public sealed record JetwayInfo(int RawStatus, bool AttachedToUser, int Door)
 /// <param name="ParkingIndex">Index in the airport's TAXI_PARKING list (not the stand number shown to pilots).</param>
 /// <param name="Name">Display name such as "Gate 121".</param>
 /// <param name="Jetway">Jetway serving this stand, or null if it has none.</param>
+/// <param name="Taxiways">The airport's taxiway graph, used to plan pushbacks. Null when not loaded.</param>
 public sealed record StandInfo(
     string AirportIcao,
     int ParkingIndex,
     string Name,
     double DistanceMeters,
     double HeadingDeg,
-    JetwayInfo? Jetway)
+    JetwayInfo? Jetway,
+    TaxiwayNetwork? Taxiways = null)
 {
     public bool HasJetway => Jetway is not null;
 }

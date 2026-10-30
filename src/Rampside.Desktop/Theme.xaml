@@ -82,8 +82,8 @@
                         <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" SnapsToDevicePixels="True" />
                         <Border x:Name="Overlay" Background="White" Opacity="0" CornerRadius="4" />
-                        <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          RecognizesAccessKey="True" />
+                        <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="Center" RecognizesAccessKey="True" />
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -299,23 +299,70 @@
     </Style>
 
     <!-- Log lines -->
-    <Style x:Key="LogItem" TargetType="ListBoxItem">
-        <Setter Property="Padding" Value="4,1" />
-        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+
+
+    <!-- Tabs: plain text headers with an accent underline on the selected one. -->
+    <Style TargetType="TabControl">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
         <Setter Property="Template">
             <Setter.Value>
-                <ControlTemplate TargetType="ListBoxItem">
-                    <Border x:Name="Bd" Background="Transparent" Padding="{TemplateBinding Padding}" CornerRadius="3">
-                        <ContentPresenter />
-                    </Border>
+                <ControlTemplate TargetType="TabControl">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Border BorderBrush="{StaticResource CardBorder}" BorderThickness="0,0,0,1" Margin="14,0,14,10">
+                            <TabPanel IsItemsHost="True" KeyboardNavigation.TabIndex="1" />
+                        </Border>
+                        <!-- The name matters: UI Automation (screen readers, UI tests) finds the tab content through it. -->
+                        <ContentPresenter x:Name="PART_SelectedContentHost" Grid.Row="1" ContentSource="SelectedContent" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="TabItem">
+        <Setter Property="Foreground" Value="{StaticResource TextSecondary}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabItem">
+                    <Grid Background="Transparent" Margin="0,0,20,0">
+                        <ContentPresenter ContentSource="Header" Margin="1,4,1,9" TextElement.Foreground="{TemplateBinding Foreground}" />
+                        <Border x:Name="Underline" Height="2" VerticalAlignment="Bottom" Margin="0,0,0,-1" CornerRadius="1" Background="Transparent" />
+                    </Grid>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+                        </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Selection}" />
+                            <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+                            <Setter TargetName="Underline" Property="Background" Value="{StaticResource Accent}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- Small dot in a tab header while that tab's service is running. -->
+    <Style x:Key="TabBusyDot" TargetType="Ellipse">
+        <Setter Property="Width" Value="6" />
+        <Setter Property="Height" Value="6" />
+        <Setter Property="Margin" Value="6,1,0,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Fill" Value="{StaticResource Accent}" />
+    </Style>
+
+    <Style x:Key="TabPage" TargetType="ScrollViewer">
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+        <Setter Property="Padding" Value="14,0,14,0" />
+        <Setter Property="Focusable" Value="False" />
     </Style>
 
 </ResourceDictionary>

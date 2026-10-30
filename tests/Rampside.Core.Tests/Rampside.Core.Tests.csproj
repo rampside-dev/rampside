@@ -13,6 +13,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Rampside.Core\Rampside.Core.csproj" />
+    <!-- For the crew voice library and player; also copies the voice clips next to the tests. -->
+    <ProjectReference Include="..\..\src\Rampside.Hosting\Rampside.Hosting.csproj" />
   </ItemGroup>
 
   <ItemGroup>

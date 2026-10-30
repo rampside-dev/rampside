@@ -12,16 +12,24 @@ public partial class App : Application
         base.OnStartup(e);
         DispatcherUnhandledException += OnDispatcherUnhandledException;
 
+        var settings = RampsideSettings.Load(null, out var settingsError);
         var options = new RampsideHostOptions
         {
             UseFakeSim = e.Args.Contains("--fake", StringComparer.OrdinalIgnoreCase),
             FakePmdg = e.Args.Contains("--fake-pmdg", StringComparer.OrdinalIgnoreCase),
+            SimBriefUser = RampsideSettings.Normalize(settings.SimBriefUser),
+            CrewVoiceEnabled = settings.CrewVoice,
+            CrewVoiceVolume = settings.CrewVoiceVolume,
         };
 
         MainViewModel viewModel;
         try
         {
-            viewModel = new MainViewModel(new RampsideHost(options));
+            viewModel = new MainViewModel(new RampsideHost(options), settings);
+            if (settingsError is not null)
+            {
+                viewModel.ShowResult(Rampside.Core.Orchestration.CommandResult.Rejected(settingsError));
+            }
         }
         catch (Exception ex)
         {

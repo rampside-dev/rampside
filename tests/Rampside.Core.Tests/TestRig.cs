@@ -1,4 +1,6 @@
 using Rampside.Core.Aircraft.Pmdg;
+using Rampside.Core.Aircraft.Procedures;
+using Rampside.Core.Gsx;
 using Rampside.Core.Orchestration;
 using Rampside.Core.Profiles;
 using Rampside.Core.Simulation;
@@ -10,12 +12,16 @@ internal sealed class TestRig
 {
     private static readonly TimeSpan Step = TimeSpan.FromMilliseconds(100);
 
-    public TestRig(AircraftProfile? profile = null, AircraftState? state = null, FakePmdgLink? pmdg = null)
+    public TestRig(AircraftProfile? profile = null, AircraftState? state = null, FakePmdgLink? pmdg = null, IGsxStandSource? gsx = null)
     {
         Sim = new FakeSimBridge(state);
         Sim.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
         Pmdg = pmdg;
-        Orchestrator = new GroundServiceOrchestrator(Sim, profile ?? FastProfile(), pmdg is null ? null : new Pmdg737Adapter(pmdg));
+        profile ??= FastProfile();
+        var adapter = pmdg is null
+            ? null
+            : AircraftProcedureCatalog.Create(profile, new ProcedureContext(Sim, profile, pmdg), AircraftProcedureCatalog.Pmdg737Family);
+        Orchestrator = new GroundServiceOrchestrator(Sim, profile, adapter, gsx);
     }
 
     public FakeSimBridge Sim { get; }
@@ -42,10 +48,11 @@ internal sealed class TestRig
             new() { Index = 3, Kind = PayloadKind.Cargo, Share = 1 },
         },
         Fuel = new FuelConfig { RateKgPerMinute = 600, TruckArrivalSeconds = 10 },
-        Pushback = new PushbackConfig { ConnectSeconds = 5, DisconnectSeconds = 5 },
+        Pushback = new PushbackConfig { ConnectSeconds = 5, DisconnectSeconds = 5, NoseLiftSeconds = 2, BrakeReactionSeconds = 0 },
         Jetway = new ConnectableConfig { ConnectSeconds = 1, DisconnectSeconds = 1 },
         Stairs = new ConnectableConfig { ConnectSeconds = 1, DisconnectSeconds = 1 },
         Gpu = new ConnectableConfig { ConnectSeconds = 1, DisconnectSeconds = 1 },
+        Doors = new DoorConfig { JetwayOpenDelaySeconds = 0 },
     };
 
     public void Run(double seconds)
@@ -54,6 +61,11 @@ internal sealed class TestRig
         {
             Sim.Advance(Step);
             Pmdg?.Advance(Step);
+            if (Pmdg is not null)
+            {
+                Sim.Update(s => s with { NearbyObjects = Pmdg.NearbyObjects(s) });
+            }
+
             Orchestrator.Tick(Step);
         }
     }

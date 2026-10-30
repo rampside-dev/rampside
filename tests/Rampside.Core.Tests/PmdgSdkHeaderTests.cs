@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using Rampside.Core.Aircraft.Pmdg;
+using Rampside.Core.Profiles;
 
 namespace Rampside.Core.Tests;
 
@@ -157,10 +158,12 @@ public class PmdgSdkHeaderTests
 
         Assert.True(ClientDataChunks.Supports(header.GetStruct(sdk.DataStruct).Size));
         Assert.True(ClientDataChunks.Supports(header.GetStruct(sdk.CduStruct).Size));
-        Assert.All(Pmdg737Adapter.DoorMap, d =>
+        var profileMap = ProfileRepository.LoadFromDirectory(Path.Combine(AppContext.BaseDirectory, "profiles"))
+            .Resolve("737-800 PAX SSW SC").DoorMap;
+        Assert.All(Pmdg737.DefaultDoorMap.Concat(profileMap), d =>
         {
             Assert.NotNull(header.GetNumber(d.Event));
-            Assert.NotNull(header.GetStruct(sdk.DataStruct).Find(d.Annunciator));
+            Assert.NotNull(header.GetStruct(sdk.DataStruct).Find(d.Indicator));
         });
     }
 }

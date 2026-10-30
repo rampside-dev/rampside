@@ -162,9 +162,11 @@ public sealed class PmdgSimConnectLink : IPmdgLink, ISimConnectExtension
         }
 
         sc.RegisterStruct<SIMCONNECT_RECV_CLIENT_DATA, RawChunks>(definitionId);
+        // Every 10th visual frame, whether or not it changed: with ON_SET + CHANGED a cold and dark aircraft
+        // that never changes its data sent nothing at all after connecting.
         sc.RequestClientData(
             clientDataId, (RequestId)requestId, definitionId,
-            SIMCONNECT_CLIENT_DATA_PERIOD.ON_SET, SIMCONNECT_CLIENT_DATA_REQUEST_FLAG.CHANGED, 0, 0, 0);
+            SIMCONNECT_CLIENT_DATA_PERIOD.VISUAL_FRAME, SIMCONNECT_CLIENT_DATA_REQUEST_FLAG.DEFAULT, 0, 10, 0);
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]

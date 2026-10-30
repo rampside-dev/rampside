@@ -35,6 +35,12 @@ jetway or stairs, no refueling with engines running.
 
 ## Build and run
 
+**Desktop window:** double-click `start-rampside.bat` in the repository folder. It builds the current code
+(Release) and opens the Rampside window; if Rampside is already running, it offers to close it first.
+Arguments are passed on, e.g. `start-rampside.bat --fake-pmdg` to try it without MSFS.
+
+Or by hand:
+
 ```bash
 dotnet build Rampside.slnx
 ```
