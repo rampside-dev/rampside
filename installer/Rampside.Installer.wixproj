@@ -2,14 +2,16 @@
 
   <!--
     Builds Rampside-<version>-x64.msi from a self-contained publish of the desktop app.
-    Use build-installer.bat in the repository root; it publishes the app first and passes RampsideAppDir.
+    Use installer\build.ps1 (or build-installer.bat); it publishes the app first and passes RampsideAppDir.
   -->
   <PropertyGroup>
     <OutputName>Rampside-$(Version)-x64</OutputName>
     <Platform>x64</Platform>
     <InstallerPlatform>x64</InstallerPlatform>
-    <RampsideAppDir Condition="'$(RampsideAppDir)' == ''">$(MSBuildThisFileDirectory)obj\publish\</RampsideAppDir>
-    <DefineConstants>AppDir=$(RampsideAppDir);ProductVersion=$(Version)</DefineConstants>
+    <RampsideAppDir Condition="'$(RampsideAppDir)' == ''">$(MSBuildThisFileDirectory)obj\publish</RampsideAppDir>
+    <!-- RampsideAppDir comes from the command line and cannot be changed here, hence a second property. -->
+    <_AppDir>$([MSBuild]::EnsureTrailingSlash('$(RampsideAppDir)'))</_AppDir>
+    <DefineConstants>AppDir=$(_AppDir);ProductVersion=$(Version)</DefineConstants>
     <!-- ICE61 only warns that AllowSameVersionUpgrades lets a rebuild of the same version replace the old one. -->
     <SuppressIces>ICE61</SuppressIces>
     <!--
@@ -24,9 +26,9 @@
   </ItemGroup>
 
   <Target Name="RampsideCheckAppDir" BeforeTargets="Build">
-    <Error Condition="!Exists('$(RampsideAppDir)Rampside.exe')"
-           Text="No published app in $(RampsideAppDir). Run build-installer.bat in the repository root." />
-    <Error Condition="!Exists('$(RampsideAppDir)SimConnect.dll')"
+    <Error Condition="!Exists('$(_AppDir)Rampside.exe')"
+           Text="No published app in $(_AppDir). Run installer\build.ps1 or build-installer.bat." />
+    <Error Condition="!Exists('$(_AppDir)SimConnect.dll')"
            Text="The published app has no SimConnect.dll, so it could only run with --fake. Build with the MSFS 2024 SDK." />
   </Target>
 
