@@ -1,4 +1,4 @@
-"""Builds the Rampside icon (.ico and PNG previews) from the SVG sources in assets/.
+"""Builds the Rampside icon (.ico and PNGs at 256, 512 and 1024 px) from the SVG sources in assets/.
 
 Renders each SVG with headless Edge or Chrome (no extra Python packages beyond Pillow),
 then scales the render down to each icon size. Sizes up to 24 px use the simplified
@@ -20,6 +20,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[2]
 ASSETS = ROOT / "assets"
 ICON_SIZES = [16, 24, 32, 48, 64, 256]
+PNG_SIZES = [256, 512, 1024]
 SMALL_MAX = 24
 RENDER = 1024
 
@@ -91,8 +92,11 @@ def main() -> None:
 
     ico = ASSETS / "rampside.ico"
     frames[-1].save(ico, format="ICO", sizes=[(s, s) for s in ICON_SIZES], append_images=frames[:-1])
-    big.resize((256, 256), Image.Resampling.LANCZOS).save(ASSETS / "rampside-256.png")
-    print(f"Wrote {ico.relative_to(ROOT)} ({', '.join(map(str, ICON_SIZES))} px) and assets/rampside-256.png")
+    for size in PNG_SIZES:
+        png = big if size == RENDER else big.resize((size, size), Image.Resampling.LANCZOS)
+        png.save(ASSETS / f"rampside-{size}.png", optimize=True)
+    pngs = ", ".join(f"assets/rampside-{s}.png" for s in PNG_SIZES)
+    print(f"Wrote {ico.relative_to(ROOT)} ({', '.join(map(str, ICON_SIZES))} px), {pngs}")
 
 
 if __name__ == "__main__":
