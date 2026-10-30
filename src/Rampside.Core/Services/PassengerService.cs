@@ -97,12 +97,14 @@ public sealed class PassengerService : GroundService
         SetStatus(ServiceStatus.Starting, detail);
     }
 
+    /// <summary>True while boarding (not deboarding) is running or was the last run.</summary>
+    public bool IsBoarding => _boarding;
+
     private void WritePayload(ServiceContext context)
     {
-        var passengers = (int)Math.Round(PassengersOnBoard);
-        foreach (var station in PayloadCalculator.Compute(context.Profile, passengers))
+        if (context.Adapter.SupportsPayload)
         {
-            context.Sim.SetPayloadStation(station.Key, station.Value);
+            context.Adapter.SetPassengerLoad((int)Math.Round(PassengersOnBoard));
         }
     }
 }

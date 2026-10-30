@@ -1,3 +1,4 @@
+using Rampside.Core.Aircraft.Pmdg;
 using Rampside.Core.Orchestration;
 using Rampside.Core.Profiles;
 using Rampside.Core.Simulation;
@@ -9,14 +10,16 @@ internal sealed class TestRig
 {
     private static readonly TimeSpan Step = TimeSpan.FromMilliseconds(100);
 
-    public TestRig(AircraftProfile? profile = null, AircraftState? state = null)
+    public TestRig(AircraftProfile? profile = null, AircraftState? state = null, FakePmdgLink? pmdg = null)
     {
         Sim = new FakeSimBridge(state);
         Sim.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
-        Orchestrator = new GroundServiceOrchestrator(Sim, profile ?? FastProfile());
+        Pmdg = pmdg;
+        Orchestrator = new GroundServiceOrchestrator(Sim, profile ?? FastProfile(), pmdg is null ? null : new Pmdg737Adapter(pmdg));
     }
 
     public FakeSimBridge Sim { get; }
+    public FakePmdgLink? Pmdg { get; }
     public GroundServiceOrchestrator Orchestrator { get; }
 
     /// <summary>Profile with short delays so tests stay quick.</summary>
@@ -50,6 +53,7 @@ internal sealed class TestRig
         for (var t = 0.0; t < seconds - 1e-9; t += Step.TotalSeconds)
         {
             Sim.Advance(Step);
+            Pmdg?.Advance(Step);
             Orchestrator.Tick(Step);
         }
     }

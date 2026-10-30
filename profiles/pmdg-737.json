@@ -1,0 +1,34 @@
+// PMDG 737 for MSFS 2024. Rampside talks to it only through the PMDG SDK (required by the PMDG EULA).
+// Needs in 737_Options.ini (in the aircraft's WASM work folder):
+//   [SDK]
+//   EnableDataBroadcast=1
+//   EnableCDUBroadcast.0=1
+//
+// The PMDG 737 title does not contain "PMDG" (e.g. "737-800 PAX SSW SC"), so it is matched by variant.
+{
+  "id": "pmdg-737",
+  "name": "PMDG 737",
+  "match": ["737-800 PAX", "737-800 BCF", "737-800 BDSF", "737-800 BBJ", "PMDG 737"],
+  "adapter": "pmdg-737",
+
+  "doors": {
+    "automatic": true,
+    "jetway": ["forwardLeft"],
+    "stairs": ["forwardLeft", "aftLeft"],
+    "cargo": ["cargoForward", "cargoAft"]
+  },
+
+  "passengers": {
+    "capacity": 162,
+    "boardingPerMinute": 18,
+    "deboardingPerMinute": 25
+  },
+
+  "pushback": {
+    "wheelbaseMeters": 15.6,
+    "maxSteeringDeg": 65
+  },
+
+  "jetway": { "connectSeconds": 30, "disconnectSeconds": 20 },
+  "stairs": { "connectSeconds": 25, "disconnectSeconds": 20 }
+}

@@ -1,3 +1,4 @@
+using Rampside.Core.Aircraft;
 using Rampside.Core.Profiles;
 using Rampside.Core.Simulation;
 
@@ -19,14 +20,16 @@ public enum ServiceStatus
 
 public sealed class ServiceContext
 {
-    public ServiceContext(ISimBridge sim, AircraftProfile profile)
+    public ServiceContext(ISimBridge sim, AircraftProfile profile, IAircraftAdapter adapter)
     {
         Sim = sim;
         Profile = profile;
+        Adapter = adapter;
     }
 
     public ISimBridge Sim { get; }
     public AircraftProfile Profile { get; }
+    public IAircraftAdapter Adapter { get; }
     public AircraftState State => Sim.State;
 }
 

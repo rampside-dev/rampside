@@ -18,6 +18,10 @@ Rampside is an independent community project. It is not affiliated with FSDreamT
 | Boarding / deboarding | Passengers per minute, passenger and bag weight written to payload stations |
 | Pushback | Tug connect, waits for brake release, steerable push (tail left/right), stop, brake, disconnect |
 
+**PMDG 737:** doors open and close automatically with jetway, stairs and boarding, through the PMDG SDK.
+Fuel and payload stay with the aircraft for now. Needs `EnableDataBroadcast=1` in `737_Options.ini`,
+see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#pmdg-737).
+
 Rules between services are enforced, e.g. no pushback while a jetway is attached, no boarding without
 jetway or stairs, no refueling with engines running.
 
@@ -64,7 +68,8 @@ push left
 push stop
 ```
 
-In fake mode, `brake` toggles the parking brake and `engines` toggles the engines.
+In fake mode, `brake` toggles the parking brake and `engines` toggles the engines. `--fake-pmdg` simulates a
+PMDG 737 with doors (`doors`, `door l1 open`, `power off`).
 
 ## Aircraft profiles
 

@@ -21,6 +21,7 @@ public sealed class SimConnectBridge : ISimBridge
     private readonly AutoResetEvent _messageSignal = new(false);
     private readonly HashSet<int> _registeredStations = new();
     private readonly Dictionary<string, uint> _eventIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<ISimConnectExtension> _extensions = new();
 
     private SimConnect? _simConnect;
     private bool _connected;
@@ -65,6 +66,12 @@ public sealed class SimConnectBridge : ISimBridge
     public AircraftState State
     {
         get { lock (_stateLock) return _state; }
+    }
+
+    /// <summary>Adds an extension (e.g. a PMDG SDK link) that sets up its own SimConnect data. Call before StartAsync.</summary>
+    public void AddExtension(ISimConnectExtension extension)
+    {
+        lock (_simLock) _extensions.Add(extension);
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -206,6 +213,13 @@ public sealed class SimConnectBridge : ISimBridge
             sc.OnRecvQuit += (_, _) => _quitReceived = true;
             sc.OnRecvException += OnRecvException;
             sc.OnRecvSimobjectData += OnRecvSimobjectData;
+            sc.OnRecvClientData += (_, data) =>
+            {
+                foreach (var extension in _extensions)
+                {
+                    extension.OnClientData(data);
+                }
+            };
             lock (_simLock)
             {
                 _quitReceived = false;
@@ -248,6 +262,18 @@ public sealed class SimConnectBridge : ISimBridge
         sender.RequestDataOnSimObject(
             Request.AircraftState, Definition.AircraftState, SimConnect.SIMCONNECT_OBJECT_ID_USER,
             SIMCONNECT_PERIOD.SIM_FRAME, SIMCONNECT_DATA_REQUEST_FLAG.DEFAULT, 0, 5, 0);
+
+        foreach (var extension in _extensions)
+        {
+            try
+            {
+                extension.OnOpen(sender);
+            }
+            catch (COMException ex)
+            {
+                Message?.Invoke(this, $"{extension.GetType().Name} setup failed: {ex.Message}");
+            }
+        }
 
         lock (_simLock) _connected = true;
         Message?.Invoke(this, $"Connected to {data.szApplicationName}");
@@ -364,6 +390,10 @@ public sealed class SimConnectBridge : ISimBridge
             _registeredStations.Clear();
             _eventIds.Clear();
             _nextEventId = FirstClientEventId;
+            foreach (var extension in _extensions)
+            {
+                extension.OnClose();
+            }
         }
 
         lock (_stateLock) _state = AircraftState.Unknown;

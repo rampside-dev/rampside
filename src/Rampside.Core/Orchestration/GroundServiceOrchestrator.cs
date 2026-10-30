@@ -1,3 +1,4 @@
+using Rampside.Core.Aircraft;
 using Rampside.Core.Profiles;
 using Rampside.Core.Services;
 using Rampside.Core.Simulation;
@@ -19,9 +20,10 @@ public sealed class GroundServiceOrchestrator
 {
     private readonly ServiceContext _context;
 
-    public GroundServiceOrchestrator(ISimBridge sim, AircraftProfile profile)
+    public GroundServiceOrchestrator(ISimBridge sim, AircraftProfile profile, IAircraftAdapter? adapter = null)
     {
-        _context = new ServiceContext(sim, profile);
+        Adapter = adapter ?? new DefaultAircraftAdapter(sim, profile);
+        _context = new ServiceContext(sim, profile, Adapter);
         Jetway = new ConnectableService("jetway", "Jetway", profile.Jetway, SimEvents.ToggleJetway);
         Stairs = new ConnectableService("stairs", "Stairs", profile.Stairs, SimEvents.ToggleStairs);
         Gpu = new ConnectableService("gpu", "Ground power", profile.Gpu, SimEvents.RequestGroundPower);
@@ -32,12 +34,18 @@ public sealed class GroundServiceOrchestrator
 
         foreach (var service in Services)
         {
-            service.Changed += (sender, _) => ServiceChanged?.Invoke(this, (GroundService)sender!);
+            service.Changed += (sender, _) =>
+            {
+                var changed = (GroundService)sender!;
+                AutomateDoors(changed);
+                ServiceChanged?.Invoke(this, changed);
+            };
         }
     }
 
     public event EventHandler<GroundService>? ServiceChanged;
 
+    public IAircraftAdapter Adapter { get; }
     public AircraftProfile Profile => _context.Profile;
     public AircraftState State => _context.State;
     public IReadOnlyList<GroundService> Services { get; }
@@ -57,11 +65,80 @@ public sealed class GroundServiceOrchestrator
             return;
         }
 
+        Adapter.Tick(elapsed);
         foreach (var service in Services)
         {
             service.Tick(_context, elapsed);
         }
     }
+
+    public CommandResult SetDoor(DoorId door, bool open)
+    {
+        if (!_context.Sim.IsConnected)
+        {
+            return CommandResult.Rejected("Not connected to the simulator.");
+        }
+
+        if (!Adapter.Doors.Contains(door))
+        {
+            return CommandResult.Rejected($"{Adapter.Name} cannot control the {DoorName(door)} door.");
+        }
+
+        if (!Adapter.IsReady)
+        {
+            return CommandResult.Rejected(Adapter.NotReadyReason ?? "The aircraft is not ready.");
+        }
+
+        if (open && !State.IsStationary)
+        {
+            return CommandResult.Rejected("The aircraft must be stationary on the ground.");
+        }
+
+        var state = Adapter.GetDoorState(door);
+        if (state == DoorState.Unknown)
+        {
+            return CommandResult.Rejected($"State of the {DoorName(door)} door is unknown. Is the aircraft powered?");
+        }
+
+        if (state == (open ? DoorState.Open : DoorState.Closed))
+        {
+            return CommandResult.Ok($"{DoorName(door)} door is already {(open ? "open" : "closed")}.");
+        }
+
+        Adapter.SetDoor(door, open);
+        return CommandResult.Ok($"{DoorName(door)} door {(open ? "opening" : "closing")}.");
+    }
+
+    public CommandResult CloseAllDoors()
+    {
+        var open = OpenDoors();
+        if (open.Count == 0)
+        {
+            return CommandResult.Ok("All doors are closed.");
+        }
+
+        foreach (var door in open)
+        {
+            Adapter.SetDoor(door, false);
+        }
+
+        return CommandResult.Ok($"Closing {string.Join(", ", open.Select(DoorName))}.");
+    }
+
+    public IReadOnlyList<DoorId> OpenDoors() =>
+        Adapter.Doors.Where(d => Adapter.GetDoorState(d) == DoorState.Open).ToList();
+
+    public static string DoorName(DoorId door) => door switch
+    {
+        DoorId.ForwardLeft => "forward left",
+        DoorId.ForwardRight => "forward right",
+        DoorId.AftLeft => "aft left",
+        DoorId.AftRight => "aft right",
+        DoorId.CargoForward => "forward cargo",
+        DoorId.CargoAft => "aft cargo",
+        DoorId.Airstair => "airstair",
+        _ => door.ToString(),
+    };
 
     public CommandResult ToggleJetway() => ToggleConnectable(Jetway, Stairs);
 
@@ -84,6 +161,16 @@ public sealed class GroundServiceOrchestrator
         if (State.FuelCapacityKg <= 0)
         {
             return CommandResult.Rejected("The aircraft reports no fuel tanks.");
+        }
+
+        if (!Adapter.SupportsFuel)
+        {
+            return CommandResult.Rejected($"Refueling is not supported for the {Adapter.Name} yet. Use the aircraft's own fuel menu.");
+        }
+
+        if (!Adapter.IsReady)
+        {
+            return CommandResult.Rejected(Adapter.NotReadyReason ?? "The aircraft is not ready.");
         }
 
         if (State.EnginesRunning && !Profile.Fuel.AllowWithEnginesRunning)
@@ -119,7 +206,7 @@ public sealed class GroundServiceOrchestrator
         }
 
         Passengers.StartBoarding(_context, count);
-        return CommandResult.Ok($"Boarding {Passengers.TargetPassengers} passengers.");
+        return CommandResult.Ok($"Boarding {Passengers.TargetPassengers} passengers.{PayloadNote()}");
     }
 
     public CommandResult RequestDeboarding()
@@ -135,7 +222,7 @@ public sealed class GroundServiceOrchestrator
         }
 
         Passengers.StartDeboarding(_context);
-        return CommandResult.Ok("Deboarding started.");
+        return CommandResult.Ok($"Deboarding started.{PayloadNote()}");
     }
 
     public CommandResult RequestPushback()
@@ -163,6 +250,12 @@ public sealed class GroundServiceOrchestrator
         if (Passengers.IsBusy || Refueling.IsBusy)
         {
             return CommandResult.Rejected("Wait until boarding and refueling have finished.");
+        }
+
+        var openDoors = OpenDoors();
+        if (openDoors.Count > 0)
+        {
+            return CommandResult.Rejected($"Close the doors first: {string.Join(", ", openDoors.Select(DoorName))}.");
         }
 
         Pushback.Start(_context);
@@ -230,6 +323,13 @@ public sealed class GroundServiceOrchestrator
                 return CommandResult.Rejected("Wait until boarding has finished.");
             }
 
+            if (Profile.Doors.Automatic)
+            {
+                // Doors still used by the other equipment stay open.
+                var stillNeeded = alternativeAccess is { IsConnected: true } ? DoorsFor(alternativeAccess) : Array.Empty<DoorId>();
+                RequestDoors(DoorsFor(service).Except(stillNeeded), open: false);
+            }
+
             service.Disconnect(_context);
             return CommandResult.Ok($"{service.DisplayName} disconnecting.");
         }
@@ -252,6 +352,45 @@ public sealed class GroundServiceOrchestrator
         service.Connect(_context);
         return CommandResult.Ok($"{service.DisplayName} requested.");
     }
+
+    private void AutomateDoors(GroundService service)
+    {
+        if (!Profile.Doors.Automatic || Adapter.Doors.Count == 0)
+        {
+            return;
+        }
+
+        if ((service == Jetway || service == Stairs) && service.Status == ServiceStatus.Active)
+        {
+            RequestDoors(DoorsFor((ConnectableService)service), open: true);
+        }
+        else if (service == Passengers)
+        {
+            if (service.Status == ServiceStatus.Active)
+            {
+                RequestDoors(Profile.Doors.Cargo, open: true);
+            }
+            else if (service.Status is ServiceStatus.Completed or ServiceStatus.Aborted)
+            {
+                RequestDoors(Profile.Doors.Cargo, open: false);
+            }
+        }
+    }
+
+    private IReadOnlyList<DoorId> DoorsFor(ConnectableService service) =>
+        service == Jetway ? Profile.Doors.Jetway : service == Stairs ? Profile.Doors.Stairs : Array.Empty<DoorId>();
+
+    private void RequestDoors(IEnumerable<DoorId> doors, bool open)
+    {
+        foreach (var door in doors.Where(Adapter.Doors.Contains))
+        {
+            Adapter.SetDoor(door, open);
+        }
+    }
+
+    private string PayloadNote() => Adapter.SupportsPayload
+        ? string.Empty
+        : $" Passenger weights are not transferred to the {Adapter.Name} yet; load the payload in the aircraft.";
 
     private string? ParkedCheck()
     {
@@ -283,6 +422,11 @@ public sealed class GroundServiceOrchestrator
         if (Pushback.IsBusy)
         {
             return "Not available during pushback.";
+        }
+
+        if (!Adapter.IsReady)
+        {
+            return Adapter.NotReadyReason ?? "The aircraft is not ready.";
         }
 
         if (!HasCabinAccess)

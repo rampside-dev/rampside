@@ -38,6 +38,55 @@ flowchart LR
 - **`FakeSimBridge`** simulates an aircraft (fuel tanks, parking brake, position integration) for tests and
   for working on Rampside without the sim.
 
+### Aircraft adapters
+
+Services never write fuel, payload or doors directly; they go through an `IAircraftAdapter` chosen by the
+profile's `adapter` field:
+
+| Adapter | Fuel | Payload | Doors |
+| --- | --- | --- | --- |
+| `default` | sim fuel tank variables | `PAYLOAD STATION WEIGHT:n` | not controlled |
+| `pmdg-737` | not yet (planned via CDU menus) | not yet (planned via CDU menus) | PMDG door events, state from the overhead door lights |
+
+The orchestrator automates doors when the adapter controls them: jetway or stairs connected → their doors
+open; before they are removed → doors close (unless the other equipment still uses them); boarding →
+cargo doors open, closed when done. Pushback is refused while any door is open.
+
+### PMDG 737
+
+Rampside uses only the PMDG SDK, as the PMDG EULA requires. Nothing from PMDG is in this repository:
+
+- `PmdgSdkLocator` finds `PMDG_NG3_SDK.h` in the user's MSFS package folders (Store and Steam, including a
+  custom `InstalledPackagesPath`). Override with the `RAMPSIDE_PMDG737_HEADER` environment variable.
+- `PmdgSdkHeader` parses it at runtime: `#define` values (event ids, client data names) and the struct layouts
+  with MSVC x64 alignment. Checked against clang for every field of the 737 header (916-byte data area).
+  When PMDG changes the layout in an update, Rampside follows automatically.
+- `PmdgSimConnectLink` subscribes to the data and CDU client data areas. The managed SimConnect wrapper needs a
+  fixed-size struct, so the area is read as 16 chunks of 256 bytes (the last ones shifted back to stay inside
+  the area) and put back together (`ClientDataChunks`).
+- Events are sent by number (`#83637` for `EVT_DOOR_FWD_L`).
+
+The aircraft only sends data with these lines in `737_Options.ini`
+(`%LOCALAPPDATA%\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalState\WASM\MSFS2024\pmdg-aircraft-738\work\`
+for the Store edition):
+
+```ini
+[SDK]
+EnableDataBroadcast=1
+EnableCDUBroadcast.0=1
+```
+
+Verified in the sim (PMDG 737-800, MSFS 2024, 30 Oct 2026): data and CDU broadcast arrive and decode correctly
+(PMDG fuel matches the sim's fuel), door events with parameter 1 open and close the doors, and the door lights
+follow within a few seconds. Door lights work on battery power alone.
+
+Still open: which DC buses exactly power the door lights (Rampside requires any of DC BATT, DC STBY, DC 1, DC 2)
+and the CDU pages for fuel and payload.
+
+PMDG EULA requirements before publishing the PMDG part: users must accept the PMDG SDK EULA on first use,
+the PMDG integration is for private use only, and tools that change PMDG ini files must be offered to PMDG for
+review. See [support.pmdg.com](http://support.pmdg.com).
+
 ### Rampside.MsfsBridge
 
 `SimConnectBridge` uses the managed SimConnect wrapper from the MSFS SDK. The DLLs are not in the repo;
@@ -69,6 +118,8 @@ title wins (case-insensitive); otherwise `generic` is used.
 
 | Section | Fields |
 | --- | --- |
+| (top level) | `id`, `name`, `match[]`, `adapter` (`default` / `pmdg-737`) |
+| `doors` | `automatic`, `jetway[]`, `stairs[]`, `cargo[]` (door ids: `forwardLeft`, `forwardRight`, `aftLeft`, `aftRight`, `cargoForward`, `cargoAft`, `airstair`) |
 | `passengers` | `capacity`, `weightKg`, `bagWeightKg`, `boardingPerMinute`, `deboardingPerMinute`, `preparationSeconds` |
 | `payloadStations[]` | `index` (SimConnect, 1-based), `name`, `kind` (`passengers`/`cargo`), `share` |
 | `fuel` | `rateKgPerMinute`, `truckArrivalSeconds`, `allowWithEnginesRunning` |

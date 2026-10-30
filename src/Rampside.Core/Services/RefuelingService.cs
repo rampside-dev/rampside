@@ -57,7 +57,7 @@ public sealed class RefuelingService : GroundService
                 _sinceWrite += elapsed;
                 if (_sinceWrite >= WriteInterval || fraction >= 1.0)
                 {
-                    context.Sim.SetFuel(Interpolate(fraction));
+                    context.Adapter.SetFuel(Interpolate(fraction));
                     _sinceWrite = TimeSpan.Zero;
                 }
 

@@ -1,3 +1,5 @@
+using Rampside.Core.Aircraft;
+
 namespace Rampside.Core.Profiles;
 
 /// <summary>
@@ -6,11 +8,19 @@ namespace Rampside.Core.Profiles;
 /// </summary>
 public sealed class AircraftProfile
 {
+    public const string DefaultAdapter = "default";
+    public const string Pmdg737Adapter = "pmdg-737";
+
     public string Id { get; init; } = "generic";
     public string Name { get; init; } = "Generic aircraft";
 
     /// <summary>Case-insensitive substrings of the aircraft title that select this profile.</summary>
     public List<string> Match { get; init; } = new();
+
+    /// <summary>How Rampside talks to the aircraft: "default" or "pmdg-737".</summary>
+    public string Adapter { get; init; } = DefaultAdapter;
+
+    public DoorConfig Doors { get; init; } = new();
 
     public PassengerConfig Passengers { get; init; } = new();
     public List<PayloadStationConfig> PayloadStations { get; init; } = new();
@@ -64,6 +74,21 @@ public sealed class PushbackConfig
     public double SteeringRateDegPerSecond { get; init; } = 10;
     public double ConnectSeconds { get; init; } = 30;
     public double DisconnectSeconds { get; init; } = 20;
+}
+
+/// <summary>Which doors Rampside opens and closes automatically. Only used when the adapter controls doors.</summary>
+public sealed class DoorConfig
+{
+    public bool Automatic { get; init; } = true;
+
+    /// <summary>Opened when the jetway is connected, closed before it is removed.</summary>
+    public List<DoorId> Jetway { get; init; } = new() { DoorId.ForwardLeft };
+
+    /// <summary>Opened when the stairs are connected, closed before they are removed.</summary>
+    public List<DoorId> Stairs { get; init; } = new() { DoorId.ForwardLeft };
+
+    /// <summary>Opened while baggage is loaded or unloaded during boarding and deboarding.</summary>
+    public List<DoorId> Cargo { get; init; } = new() { DoorId.CargoForward, DoorId.CargoAft };
 }
 
 public sealed class ConnectableConfig
