@@ -45,5 +45,8 @@
     <!-- Wizard: welcome, license, install folder, progress, finish. -->
     <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
     <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+    <!-- Rampside artwork instead of WiX's red defaults; built by tools/icon/build_installer_art.py. -->
+    <WixVariable Id="WixUIDialogBmp" Value="art\dialog.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="art\banner.bmp" />
   </Package>
 </Wix>
