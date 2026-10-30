@@ -86,8 +86,29 @@ builds `installer\bin\x64\Release\Rampside-<version>-x64.msi` with the [WiX Tool
 Players need nothing else: the MSI brings the .NET runtime, SimConnect, profiles and crew voices, installs to
 `C:\Program Files\Rampside` and adds a Start menu entry. Settings stay in `%AppData%\Rampside`.
 
-For a release, raise `<Version>` in [Directory.Build.props](Directory.Build.props); the new MSI then replaces
-the installed version. The MSI is not code-signed yet, so Windows SmartScreen warns on first start.
+A newer MSI replaces the installed version. The MSI is not code-signed yet, so Windows SmartScreen warns on
+first start.
+
+## Releases
+
+GitHub Actions ([build.yml](.github/workflows/build.yml)) builds, tests and builds the MSI on every push and
+pull request; the MSI is attached to each run. SimConnect comes from Microsoft's MSFS 2024 SDK installer, which
+the workflow downloads (checksum pinned) and caches; the SDK DLLs are never committed.
+
+To publish a release, either push a tag:
+
+```bash
+git tag v0.2.0
+```
+
+```bash
+git push origin v0.2.0
+```
+
+or on GitHub open **Actions → Build → Run workflow** and enter the version (`0.2.0`); the tag is created for you.
+Both run the tests, build `Rampside-0.2.0-x64.msi` and publish the release "Rampside 0.2.0" with the MSI, its
+SHA-256 checksum and notes from the merged changes. The version comes from the tag; `<Version>` in
+[Directory.Build.props](Directory.Build.props) is only used for local builds.
 
 ## Aircraft profiles
 
@@ -103,7 +124,8 @@ src/Rampside.Core         service logic, rules, profiles, fake simulator (no MSF
 src/Rampside.MsfsBridge   SimConnect connection to MSFS 2024
 src/Rampside.App          console host
 tests/Rampside.Core.Tests unit tests
-installer/                WiX project for the MSI (built by build-installer.bat)
+installer/                WiX project for the MSI (build.ps1, also run by build-installer.bat and CI)
+.github/                  CI build and releases (build.yml), website deployment (pages.yml)
 profiles/                 aircraft profiles
 docs/                     architecture and roadmap
 web/                      website (rampside.dev), published to GitHub Pages by .github/workflows/pages.yml

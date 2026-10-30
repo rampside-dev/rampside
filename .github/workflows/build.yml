@@ -1,0 +1,136 @@
+# Builds and tests Rampside and builds the MSI installer on every push and pull request.
+#
+# Releasing (either way builds, tests and publishes the GitHub release "Rampside X.Y.Z" with the MSI):
+#   - push a tag:  git tag v0.2.0 && git push origin v0.2.0
+#   - or on GitHub: Actions > Build > Run workflow, enter the version (e.g. 0.2.0); the tag is created for you.
+# The version comes from the tag or the input; <Version> in Directory.Build.props is only for local builds.
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths-ignore:
+      - "web/**"
+      - ".github/workflows/pages.yml"
+  pull_request:
+    paths-ignore:
+      - "web/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Publish a release with this version, e.g. 0.2.0 (creates the tag v0.2.0). Empty = only build."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  # SimConnect comes from Microsoft's MSFS 2024 SDK installer; only the two DLLs are kept (cached per version).
+  # New SDK: set the version, run once, and copy the checksum from the error message after checking the file.
+  MSFS_SDK_VERSION: "1.8.1"
+  MSFS_SDK_SHA256: "7E7CD4774F3CB47E2942960E17B19B0A553499B2BAB23DA4851127A2363B8750"
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      release: ${{ steps.version.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Version
+        id: version
+        shell: pwsh
+        env:
+          INPUT_VERSION: ${{ inputs.release_version }}
+        run: |
+          $release = $true
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $v = $env:GITHUB_REF_NAME -replace '^v', ''
+          } elseif ($env:INPUT_VERSION) {
+            $v = $env:INPUT_VERSION.Trim() -replace '^v', ''
+            git fetch --tags --quiet
+            if (git tag --list "v$v") { throw "Tag v$v already exists. Pick a new version, or run the workflow on that tag." }
+          } else {
+            $release = $false
+            $v = (Select-Xml -Path Directory.Build.props -XPath '//Version').Node.InnerText | Select-Object -First 1
+          }
+          if ($v -notmatch '^\d+\.\d+\.\d+$') { throw "Version '$v' must look like 1.2.3 (an MSI version has no suffix)." }
+          Write-Host "Version $v, release: $release"
+          "version=$v" >> $env:GITHUB_OUTPUT
+          "release=$($release.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+
+      - name: Cache SimConnect
+        id: simconnect
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/msfs-sdk
+          key: simconnect-msfs2024-sdk-${{ env.MSFS_SDK_VERSION }}
+
+      - name: Get SimConnect from the MSFS 2024 SDK
+        if: steps.simconnect.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: ./.github/scripts/get-simconnect.ps1 -Version $env:MSFS_SDK_VERSION -Sha256 $env:MSFS_SDK_SHA256 -OutDir "$env:RUNNER_TEMP\msfs-sdk"
+
+      - name: Test
+        shell: pwsh
+        run: dotnet test -c Release "-p:MsfsSdkRoot=$env:RUNNER_TEMP\msfs-sdk"
+
+      - name: Build installer
+        shell: pwsh
+        run: ./installer/build.ps1 -MsfsSdkRoot "$env:RUNNER_TEMP\msfs-sdk" -Version "${{ steps.version.outputs.version }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Rampside-${{ steps.version.outputs.version }}-x64
+          path: installer/bin/x64/Release/*.msi
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: needs.build.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
+        working-directory: dist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          tag="v$VERSION"
+          msi="Rampside-$VERSION-x64.msi"
+          sha256sum "$msi" > SHA256SUMS.txt
+
+          cat > notes.md <<EOF
+          ### Install
+
+          Download **$msi** below and run it. Needs Windows 10/11 x64 and Microsoft Flight Simulator 2024.
+          The installer is not code-signed yet, so Windows SmartScreen warns: choose *More info*, then *Run anyway*.
+          A newer version installs over the old one; settings in \`%AppData%\\Rampside\` are kept.
+          EOF
+
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            # Re-run for an existing release: replace the files, keep the notes.
+            gh release upload "$tag" "$msi" SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            # On a tag push the tag exists; from "Run workflow" it is created on the commit that was built.
+            gh release create "$tag" "$msi" SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "Rampside $VERSION" --notes-file notes.md --generate-notes
+          fi
