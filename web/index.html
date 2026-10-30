@@ -76,9 +76,9 @@
             Free, open source, and made to work with any aircraft out of the box.
           </p>
           <div class="actions">
-            <a class="btn btn-primary btn-icon" href="https://github.com/rampside-dev/rampside/releases/latest">
+            <a class="btn btn-primary btn-icon" href="https://github.com/rampside-dev/rampside/releases/latest" data-download>
               <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-download"/></svg>
-              Download
+              Download Rampside
             </a>
             <a class="btn btn-ghost" href="#install">How to install</a>
           </div>
@@ -349,11 +349,12 @@
               Windows SmartScreen warns on first start.
             </p>
             <div class="install-download">
-              <a class="btn btn-primary btn-icon" href="https://github.com/rampside-dev/rampside/releases/latest">
+              <!-- data-download: the Website workflow points these at the MSI of the latest release. -->
+              <a class="btn btn-primary btn-icon" href="https://github.com/rampside-dev/rampside/releases/latest" data-download>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-download"/></svg>
                 Download the installer
               </a>
-              <small>Latest release on GitHub, with release notes and the SHA-256 checksum.</small>
+              <small><span data-release>Latest release</span>. <a href="https://github.com/rampside-dev/rampside/releases/latest">Release notes and SHA-256 checksum</a> on GitHub.</small>
             </div>
             <h3>From source</h3>
             <p>Needs the .NET 10 SDK. For the sim connection, also the MSFS 2024 SDK. Without it, Rampside runs against a fake aircraft.</p>

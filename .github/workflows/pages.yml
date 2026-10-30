@@ -1,5 +1,6 @@
 # Publishes the website in web/ to GitHub Pages (rampside.dev).
-# The site is static HTML and CSS, so there is no build step: the folder is uploaded as it is.
+# The site is static HTML and CSS. The only build step points the download buttons at the MSI of the latest
+# release (.github/scripts/stamp-download-links.py). The Build workflow runs this one after each release.
 name: Website
 
 on:
@@ -8,6 +9,7 @@ on:
     paths:
       - "web/**"
       - ".github/workflows/pages.yml"
+      - ".github/scripts/stamp-download-links.py"
   workflow_dispatch:
 
 permissions:
@@ -27,13 +29,22 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/configure-pages@v5
+      - name: Link the download buttons to the latest MSI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp -r web "$RUNNER_TEMP/site"
+          # No release yet: GitHub answers 404 and the buttons keep linking to the release page.
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" > "$RUNNER_TEMP/release.json" || echo '{}' > "$RUNNER_TEMP/release.json"
+          python3 .github/scripts/stamp-download-links.py "$RUNNER_TEMP/site" "$RUNNER_TEMP/release.json"
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
         with:
-          path: web
+          path: ${{ runner.temp }}/site
 
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

@@ -107,7 +107,8 @@ git push origin v0.2.0
 
 or on GitHub open **Actions → Build → Run workflow** and enter the version (`0.2.0`); the tag is created for you.
 Both run the tests, build `Rampside-0.2.0-x64.msi` and publish the release "Rampside 0.2.0" with the MSI, its
-SHA-256 checksum and notes from the merged changes. The version comes from the tag; `<Version>` in
+SHA-256 checksum and notes from the merged changes. Then the website is deployed again, so its download
+buttons link straight to the new MSI. The version comes from the tag; `<Version>` in
 [Directory.Build.props](Directory.Build.props) is only used for local builds.
 
 ## Aircraft profiles

@@ -4,6 +4,7 @@
 #   - push a tag:  git tag v0.2.0 && git push origin v0.2.0
 #   - or on GitHub: Actions > Build > Run workflow, enter the version (e.g. 0.2.0); the tag is created for you.
 # The version comes from the tag or the input; <Version> in Directory.Build.props is only for local builds.
+# After a release the Website workflow runs, so the download buttons on the site point at the new MSI.
 name: Build
 
 on:
@@ -102,6 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write # to start the Website workflow
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -134,3 +136,9 @@ jobs:
             gh release create "$tag" "$msi" SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
               --title "Rampside $VERSION" --notes-file notes.md --generate-notes
           fi
+
+      # Releases made with the workflow token start no other workflows by themselves; a dispatch does.
+      - name: Update the website's download links
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main
