@@ -60,6 +60,13 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _dispatcher = Dispatcher.CurrentDispatcher;
         HasFakePmdg = host.Pmdg is FakePmdgLink;
         Settings = new SettingsViewModel(host, settings);
+        Updates = new UpdateViewModel(
+            settings,
+            text => AddLog(new LogEntry(DateTime.Now, text, LogKind.Info)),
+            question => System.Windows.MessageBox.Show(question, "Rampside update", System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Question) == System.Windows.MessageBoxResult.Yes,
+            () => Services.Any(s => s.IsBusy),
+            () => System.Windows.Application.Current.MainWindow?.Close());
 
         LoadFlightPlanCommand = new AsyncCommand(() => LoadFlightPlanAsync(), () => _host.SimBriefUser is not null);
         ForceLoadFlightPlanCommand = new AsyncCommand(ForceLoadFlightPlanAsync, () => _refusedPlan is not null);
@@ -102,6 +109,9 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public AsyncCommand ToggleDcPowerCommand { get; }
 
     public SettingsViewModel Settings { get; }
+
+    /// <summary>New Rampside versions: the banner under the header and the Updates card on the Settings tab.</summary>
+    public UpdateViewModel Updates { get; }
 
     /// <summary>Fetches the latest SimBrief plan and hands it to the orchestrator, which checks it.</summary>
     public AsyncCommand LoadFlightPlanCommand { get; }

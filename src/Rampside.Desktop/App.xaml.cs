@@ -41,6 +41,7 @@ public partial class App : Application
         // The window shuts the app down after it is closed and the host has stopped.
         MainWindow = new MainWindow(viewModel);
         MainWindow.Show();
+        _ = viewModel.Updates.CheckOnStartAsync(); // reports its own problems; runs beside the sim connection
         await viewModel.StartAsync();
     }
 

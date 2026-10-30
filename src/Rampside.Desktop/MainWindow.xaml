@@ -34,6 +34,54 @@
             <Setter Property="Margin" Value="0,0,6,0" />
         </Style>
 
+        <!--
+          Update button: like the primary button, but its background fills from the left with the download
+          progress (DownloadProgress, 0..1, from the data context). It stays coloured while disabled during the download.
+        -->
+        <Style x:Key="ProgressButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" SnapsToDevicePixels="True" />
+                            <!--
+                              The mask keeps the fill inside the rounded corners at any width. The transparent
+                              background makes the mask span the whole button, not just the fill.
+                            -->
+                            <Grid Background="Transparent">
+                                <Grid.OpacityMask>
+                                    <VisualBrush Visual="{Binding ElementName=Bd}" />
+                                </Grid.OpacityMask>
+                                <Border Background="{StaticResource Accent}" Opacity="0.4" RenderTransformOrigin="0,0.5">
+                                    <Border.RenderTransform>
+                                        <ScaleTransform ScaleX="{Binding DownloadProgress}" />
+                                    </Border.RenderTransform>
+                                </Border>
+                            </Grid>
+                            <Border x:Name="Overlay" Background="White" Opacity="0" CornerRadius="4" />
+                            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" RecognizesAccessKey="True" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Overlay" Property="Opacity" Value="0.06" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Overlay" Property="Opacity" Value="0.12" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Overlay" Property="Opacity" Value="0" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Status of a service: neutral when idle, amber while moving, green when active or done, red when aborted. -->
         <DataTemplate x:Key="StatusPill" DataType="{x:Type vm:ServiceViewModel}">
             <Border x:Name="Pill" CornerRadius="9" Padding="8,1,8,2" Margin="0,0,10,0" VerticalAlignment="Center"
@@ -277,16 +325,38 @@
                       IsChecked="{Binding Topmost, RelativeSource={RelativeSource AncestorType=Window}}" />
         </Grid>
 
-        <!-- Adapter problem -->
-        <Border Grid.Row="1" Margin="14,0,14,10" Padding="10,8" CornerRadius="6" BorderThickness="1"
-                Background="{StaticResource WarnBackground}" BorderBrush="{StaticResource WarnBorder}"
-                Visibility="{Binding HasAdapterProblem, Converter={StaticResource VisibleWhen}}">
-            <DockPanel>
-                <TextBlock DockPanel.Dock="Left" Text="&#xE7BA;" FontFamily="{StaticResource IconFont}" FontSize="14"
-                           Foreground="{StaticResource Warn}" Margin="0,1,10,0" VerticalAlignment="Top" />
-                <TextBlock Text="{Binding AdapterProblem}" Foreground="{StaticResource Warn}" TextWrapping="Wrap" />
-            </DockPanel>
-        </Border>
+        <StackPanel Grid.Row="1">
+            <!-- Adapter problem -->
+            <Border Margin="14,0,14,10" Padding="10,8" CornerRadius="6" BorderThickness="1"
+                    Background="{StaticResource WarnBackground}" BorderBrush="{StaticResource WarnBorder}"
+                    Visibility="{Binding HasAdapterProblem, Converter={StaticResource VisibleWhen}}">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Left" Text="&#xE7BA;" FontFamily="{StaticResource IconFont}" FontSize="14"
+                               Foreground="{StaticResource Warn}" Margin="0,1,10,0" VerticalAlignment="Top" />
+                    <TextBlock Text="{Binding AdapterProblem}" Foreground="{StaticResource Warn}" TextWrapping="Wrap" />
+                </DockPanel>
+            </Border>
+
+            <!-- New version available: one button downloads it, opens the installer and closes Rampside -->
+            <Border Margin="14,0,14,10" Padding="10,6,6,6" CornerRadius="6" BorderThickness="1"
+                    Background="{StaticResource AccentBackground}" BorderBrush="{StaticResource AccentBorder}"
+                    DataContext="{Binding Updates}"
+                    Visibility="{Binding ShowBanner, Converter={StaticResource VisibleWhen}}">
+                <StackPanel>
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Left" Text="&#xE896;" FontFamily="{StaticResource IconFont}" FontSize="14"
+                                   Foreground="{StaticResource Accent}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                        <!-- Fixed width, wide enough for "Downloading…", so the button never jumps. -->
+                        <Button DockPanel.Dock="Right" Content="{Binding InstallButtonText}" Command="{Binding InstallCommand}"
+                                Style="{StaticResource ProgressButton}" Width="116" Margin="10,0,0,0"
+                                ToolTip="{Binding InstallHint}" AutomationProperties.Name="Update Rampside" />
+                        <TextBlock Text="{Binding BannerText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding UpdateError}" Foreground="{StaticResource Bad}" TextWrapping="Wrap" Margin="24,6,0,2"
+                               Visibility="{Binding HasUpdateError, Converter={StaticResource VisibleWhen}}" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
 
         <!-- Result of the last command -->
         <Border Grid.Row="2" Margin="14,0,14,10" Padding="10,7" CornerRadius="6" BorderThickness="1"
@@ -616,6 +686,36 @@
                                 <TextBlock Text="{Binding CrewVoiceNote}" Foreground="{StaticResource Bad}" TextWrapping="Wrap" Margin="0,8,0,0"
                                            Visibility="{Binding HasCrewVoiceNote, Converter={StaticResource VisibleWhen}}" />
                                 <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0" Text="{Binding CrewVoiceHint}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Updates: version, check at start, check now -->
+                        <Border Style="{StaticResource Card}" DataContext="{Binding Updates}">
+                            <StackPanel>
+                                <TextBlock Text="UPDATES" Style="{StaticResource SectionTitle}" Margin="0,0,0,6" />
+                                <TextBlock Text="{Binding CurrentVersionText}" Style="{StaticResource Value}" Margin="0,0,0,8" />
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox Content="Check when Rampside starts" Style="{StaticResource Switch}" VerticalAlignment="Center"
+                                              IsChecked="{Binding CheckAtStart}" AutomationProperties.Name="Check for updates when Rampside starts"
+                                              Margin="0,0,12,0" />
+                                    <Button Content="Check now" Command="{Binding CheckNowCommand}" Style="{StaticResource ActionButton}"
+                                            AutomationProperties.Name="Check for updates now" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding CheckResult}" TextWrapping="Wrap" Margin="0,8,0,0"
+                                           Visibility="{Binding HasCheckResult, Converter={StaticResource VisibleWhen}}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{StaticResource Good}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding CheckResultIsError}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource Bad}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0"
+                                           Text="Rampside only asks the Rampside website for the latest version number. An update is installed only when you press Update." />
                             </StackPanel>
                         </Border>
                     </StackPanel>

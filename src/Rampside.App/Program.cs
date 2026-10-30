@@ -1,5 +1,6 @@
 using Rampside.App;
 using Rampside.Hosting;
+using Rampside.Hosting.Updates;
 
 var settings = RampsideSettings.Load(null, out var settingsError);
 if (settingsError is not null)
@@ -25,6 +26,27 @@ Console.WriteLine(host.SimBriefUser is { } user
     ? $"SimBrief user: {user} (type 'ofp' to load the latest flight plan)."
     : "SimBrief: not set (Settings tab of the desktop window, or start with --simbrief <pilot id or username>).");
 Console.WriteLine("Type 'help' for commands.");
+
+// The console only mentions a new version; the desktop window can install it.
+if (settings.CheckForUpdates)
+{
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            using var updates = new UpdateClient();
+            var latest = await updates.GetLatestAsync();
+            if (latest.IsNewerThan(ReleaseInfo.CurrentVersion))
+            {
+                Console.WriteLine($"  Rampside {latest.VersionText} is available: {latest.NotesUrl}");
+            }
+        }
+        catch (UpdateException)
+        {
+            // No network or no release information: not worth a line in the console.
+        }
+    });
+}
 
 var shell = new ConsoleShell(host.Sim, host.Fake, () => host.Orchestrator, host.Pmdg);
 while (Console.ReadLine() is { } line)

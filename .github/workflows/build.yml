@@ -126,6 +126,7 @@ jobs:
           Download **$msi** below and run it. Needs Windows 10/11 x64 and Microsoft Flight Simulator 2024.
           The installer is not code-signed yet, so Windows SmartScreen warns: choose *More info*, then *Run anyway*.
           A newer version installs over the old one; settings in \`%AppData%\\Rampside\` are kept.
+          Once installed, Rampside offers later versions itself (Settings tab, Updates).
           EOF
 
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then

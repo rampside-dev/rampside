@@ -66,7 +66,10 @@ the tag on the commit it built.
 
 `web/` is static HTML/CSS, deployed to GitHub Pages by `.github/workflows/pages.yml` on every push to `main`
 that touches it. Download buttons must keep their `data-download` attribute so the deploy can link them to
-the latest MSI.
+the latest MSI. The deploy also writes `latest.json`, which installed copies read to offer updates
+(`src/Rampside.Hosting/Updates/ReleaseInfo.cs`): keep its URL and fields, or older installs stop seeing updates.
+The MSI stores its folder in `HKLM\Software\Rampside\InstallFolder`; a copy running from there updates with a
+progress bar only, any other copy gets the full installer wizard.
 
 ## Working in this repository
 

@@ -209,6 +209,16 @@ services at 20 Hz on its own loop and publishes an immutable `RampsideSnapshot` 
 go through `ExecuteAsync`/`InvokeAsync` and run on the loop, because the orchestrator is not thread-safe. The
 console (`Rampside.App`) and the desktop window both use it.
 
+Updates (`Updates/`): `UpdateClient` reads `latest.json` from the website (written by
+`.github/scripts/stamp-download-links.py` from GitHub's latest release) and downloads the MSI, checking size and
+SHA-256. `ReleaseInfo.Parse` accepts installer and notes links only under
+`https://github.com/rampside-dev/rampside/releases/`, so a changed website alone cannot hand out another file. The
+desktop window installs (`UpdateInstaller`): a PowerShell script waits for Rampside to exit, runs
+`msiexec` and starts Rampside from the folder the MSI wrote to `HKLM\Software\Rampside\InstallFolder` (the old
+copy if the install was cancelled). A copy running from that folder gets `/passive` (progress bar only); any
+other copy, e.g. a build from source, gets the full wizard. The MSI reads that value back, so upgrades keep the
+folder.
+
 ### Rampside.MsfsBridge
 
 `SimConnectBridge` uses the managed SimConnect wrapper from the MSFS SDK. The DLLs are not in the repo;

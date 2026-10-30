@@ -28,6 +28,9 @@ public sealed class RampsideSettings
     /// <summary>Crew voice volume, 0..1.</summary>
     public double CrewVoiceVolume { get; set; } = 0.8;
 
+    /// <summary>Whether Rampside asks the website for a newer version when it starts. Installing always needs a click.</summary>
+    public bool CheckForUpdates { get; set; } = true;
+
     /// <summary>Reads the settings; a missing or broken file gives defaults (and an error text for broken files).</summary>
     public static RampsideSettings Load(string? path, out string? error)
     {

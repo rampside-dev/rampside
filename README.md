@@ -86,8 +86,19 @@ builds `installer\bin\x64\Release\Rampside-<version>-x64.msi` with the [WiX Tool
 Players need nothing else: the MSI brings the .NET runtime, SimConnect, profiles and crew voices, installs to
 `C:\Program Files\Rampside` and adds a Start menu entry. Settings stay in `%AppData%\Rampside`.
 
-A newer MSI replaces the installed version. The MSI is not code-signed yet, so Windows SmartScreen warns on
-first start.
+A newer MSI replaces the installed version, in the folder chosen at the first install. The MSI is not
+code-signed yet, so Windows SmartScreen warns on first start.
+
+### Updates
+
+At start, Rampside reads `latest.json` from the website (switch it off on the Settings tab). When a newer
+version is out, a banner shows one button, **Update**: Rampside downloads the MSI from the GitHub release
+(the button fills up as it goes), checks its size and SHA-256, opens the installer and closes. The installer shows its
+progress (Windows asks for permission) and starts Rampside again. Nothing is installed without that click.
+A copy that was not installed with the MSI (e.g. a build from source) opens the full installer wizard
+instead, and the installed Rampside starts afterwards.
+`latest.json` is written by the Website workflow from the latest release, so publishing a release is all it
+takes. To try a release before the website has it, set `RAMPSIDE_UPDATE_URL` to another `latest.json`.
 
 ## Releases
 
@@ -108,7 +119,7 @@ git push origin v0.2.0
 or on GitHub open **Actions → Build → Run workflow** and enter the version (`0.2.0`); the tag is created for you.
 Both run the tests, build `Rampside-0.2.0-x64.msi` and publish the release "Rampside 0.2.0" with the MSI, its
 SHA-256 checksum and notes from the merged changes. Then the website is deployed again, so its download
-buttons link straight to the new MSI. The version comes from the tag; `<Version>` in
+buttons link straight to the new MSI and its `latest.json` tells installed copies about the update. The version comes from the tag; `<Version>` in
 [Directory.Build.props](Directory.Build.props) is only used for local builds.
 
 ## Aircraft profiles

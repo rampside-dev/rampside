@@ -19,8 +19,21 @@
     <Property Id="ARPPRODUCTICON" Value="RampsideIcon" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
-      <Directory Id="INSTALLFOLDER" Name="Rampside" />
+      <Directory Id="INSTALLFOLDER" Name="Rampside">
+        <!--
+          The chosen folder, read back below so an upgrade installs into the same place. Rampside reads it too:
+          only a copy running from this folder installs updates itself (src/Rampside.Desktop/UpdateInstaller.cs).
+        -->
+        <Component Id="InstallFolderRegistry">
+          <RegistryValue Root="HKLM" Key="Software\Rampside" Name="InstallFolder"
+                         Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+        </Component>
+      </Directory>
     </StandardDirectory>
+
+    <Property Id="INSTALLFOLDER" Secure="yes">
+      <RegistrySearch Id="PreviousInstallFolder" Root="HKLM" Key="Software\Rampside" Name="InstallFolder" Type="raw" />
+    </Property>
 
     <StandardDirectory Id="ProgramMenuFolder">
       <Component Id="StartMenuShortcut">
@@ -40,6 +53,7 @@
       <!-- Everything from the self-contained publish: Rampside.exe, the .NET runtime, SimConnect.dll, profiles, crew voices. -->
       <Files Directory="INSTALLFOLDER" Include="$(var.AppDir)**" />
       <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="InstallFolderRegistry" />
     </Feature>
 
     <!-- Wizard: welcome, license, install folder, progress, finish. -->
