@@ -106,6 +106,7 @@ tests/Rampside.Core.Tests unit tests
 installer/                WiX project for the MSI (built by build-installer.bat)
 profiles/                 aircraft profiles
 docs/                     architecture and roadmap
+web/                      website (rampside.dev), published to GitHub Pages by .github/workflows/pages.yml
 ```
 
 ## Contributing

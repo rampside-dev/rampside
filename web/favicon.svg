@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>Rampside (16 and 24 px)</title>
+  <!-- Simplified rampside.svg for tiny icon sizes: no engines or jetway, heavier shapes. -->
+  <defs>
+    <linearGradient id="apron" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#21515E" />
+      <stop offset="1" stop-color="#112830" />
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="256" height="256" rx="44" fill="url(#apron)" />
+
+  <!-- Stop bar and lead-in line -->
+  <rect x="80" y="16" width="96" height="28" rx="8" fill="#F2B84B" />
+  <rect x="114" y="200" width="28" height="56" fill="#F2B84B" />
+
+  <!-- Airliner -->
+  <g fill="#F4F7F8">
+    <path d="M144 100 L246 156 L246 182 L144 156 Z" />
+    <path d="M112 100 L10 156 L10 182 L112 156 Z" />
+    <path d="M140 182 L194 208 L194 226 L140 218 Z" />
+    <path d="M116 182 L62 208 L62 226 L116 218 Z" />
+    <path d="M128 58 C144 58 150 74 150 92 L150 196 C150 212 140 226 128 236 C116 226 106 212 106 196 L106 92 C106 74 112 58 128 58 Z" />
+  </g>
+</svg>

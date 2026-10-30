@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>Rampside</title>
+  <!-- An airliner seen from above, parked on the stand: lead-in line, stop bar and a jetway at the forward door. -->
+  <defs>
+    <linearGradient id="apron" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#21515E" />
+      <stop offset="1" stop-color="#112830" />
+    </linearGradient>
+    <clipPath id="tile">
+      <rect x="8" y="8" width="240" height="240" rx="54" />
+    </clipPath>
+  </defs>
+
+  <rect x="8" y="8" width="240" height="240" rx="54" fill="url(#apron)" />
+
+  <g clip-path="url(#tile)">
+    <!-- Lead-in line and stop bar -->
+    <path d="M196 262 C196 222 128 226 128 190 L128 80" fill="none" stroke="#F2B84B" stroke-width="12" stroke-linecap="round" />
+    <rect x="96" y="30" width="64" height="13" rx="6.5" fill="#F2B84B" />
+
+    <!-- Jetway: rotunda at the terminal side, tunnel to the forward door -->
+    <path d="M22 74 L106 82" fill="none" stroke="#7FC8D8" stroke-width="15" stroke-linecap="round" />
+    <circle cx="26" cy="74" r="14" fill="#7FC8D8" />
+
+    <!-- Airliner, scaled around the nose so it sits on the stop bar -->
+    <g transform="translate(128 52) scale(0.86) translate(-128 -52)">
+      <g fill="#EEF3F5">
+        <!-- Wings -->
+        <path d="M140 106 L230 156 L230 170 L140 146 Z" />
+        <path d="M116 106 L26 156 L26 170 L116 146 Z" />
+        <!-- Tailplane -->
+        <path d="M138 188 L178 208 L178 218 L138 210 Z" />
+        <path d="M118 188 L78 208 L78 218 L118 210 Z" />
+        <!-- Fuselage -->
+        <path d="M128 52 C139 52 144 65 144 82 L144 190 C144 205 137 218 128 226 C119 218 112 205 112 190 L112 82 C112 65 117 52 128 52 Z" />
+      </g>
+      <!-- Engines, set off from the wing by a thin apron-colored outline -->
+      <g fill="#EEF3F5" stroke="#1A3F4A" stroke-width="4.5">
+        <rect x="166" y="114" width="18" height="32" rx="8" />
+        <rect x="72" y="114" width="18" height="32" rx="8" />
+      </g>
+    </g>
+  </g>
+</svg>

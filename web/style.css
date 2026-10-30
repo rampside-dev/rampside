@@ -1,0 +1,630 @@
+/* Rampside – rampside.dev
+   Colors come from the logo: apron teal, taxiway yellow, jetway cyan, fuselage white. */
+
+:root {
+  --apron: #112830;
+  --apron-2: #173A44;
+  --apron-3: #21515E;
+  --joint: #0C1F26;
+  --taxi: #F2B84B;
+  --taxi-ink: #2A1E06;
+  --jetway: #7FC8D8;
+  --hull: #EEF3F5;
+  --concrete: #A3B9BF;
+  --hold: #C8322B;
+  --sign: #161819;
+
+  --font: "Overpass", "Segoe UI", system-ui, sans-serif;
+  --mono: "Overpass Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --wrap: 1180px;
+  --gutter: clamp(16px, 4vw, 40px);
+  --section: clamp(72px, 10vw, 136px);
+}
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+
+body {
+  margin: 0;
+  background-color: var(--apron);
+  /* Concrete slabs: faint expansion joints, like an apron seen from above */
+  background-image:
+    linear-gradient(var(--joint) 1px, transparent 1px),
+    linear-gradient(90deg, var(--joint) 1px, transparent 1px);
+  background-size: 160px 160px;
+  color: var(--hull);
+  font-family: var(--font);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+img, svg { display: block; max-width: 100%; }
+
+a { color: var(--jetway); text-underline-offset: 3px; }
+a:hover { color: var(--hull); }
+
+:focus-visible {
+  outline: 3px solid var(--taxi);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+h1, h2, h3 {
+  margin: 0;
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+h2 { font-size: clamp(2rem, 3.6vw, 2.9rem); }
+h3 { font-size: 1.25rem; line-height: 1.25; letter-spacing: 0; }
+
+p { margin: 0; max-width: 64ch; }
+
+code, pre { font-family: var(--mono); }
+
+p code, dd code {
+  font-size: 0.9em;
+  padding: 0.08em 0.35em;
+  border-radius: 4px;
+  background: var(--apron-2);
+  color: var(--taxi);
+}
+
+.wrap {
+  width: 100%;
+  max-width: calc(var(--wrap) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.skip {
+  position: absolute;
+  left: 16px;
+  top: -60px;
+  z-index: 10;
+  padding: 10px 14px;
+  background: var(--taxi);
+  color: var(--taxi-ink);
+  font-weight: 800;
+  border-radius: 6px;
+}
+.skip:focus { top: 12px; }
+
+/* ---------- Header ---------- */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: rgba(17, 40, 48, 0.86);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(127, 200, 216, 0.12);
+}
+
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  height: 68px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--hull);
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+}
+
+.site-header nav {
+  display: flex;
+  align-items: center;
+  gap: clamp(14px, 2.4vw, 30px);
+}
+
+.site-header nav a {
+  color: var(--concrete);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.97rem;
+}
+.site-header nav a:hover { color: var(--hull); }
+
+.site-header nav .nav-source {
+  color: var(--taxi);
+  padding: 6px 12px;
+  border: 2px solid var(--taxi);
+  border-radius: 6px;
+}
+.site-header nav .nav-source:hover { background: var(--taxi); color: var(--taxi-ink); }
+
+/* ---------- Buttons ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 1.02rem;
+  text-decoration: none;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.btn-primary { background: var(--taxi); color: var(--taxi-ink); }
+.btn-primary:hover { background: #FFD27A; color: var(--taxi-ink); }
+
+.btn-ghost {
+  color: var(--hull);
+  border: 2px solid rgba(238, 243, 245, 0.28);
+}
+.btn-ghost:hover { border-color: var(--hull); color: var(--hull); }
+
+/* ---------- Airport signs ---------- */
+
+/* Location sign: yellow on black with a yellow border */
+.loc {
+  display: inline-block;
+  padding: 0.18em 0.5em 0.05em;
+  background: var(--sign);
+  color: var(--taxi);
+  border: 2px solid var(--taxi);
+  border-radius: 3px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+/* Mandatory instruction sign: white on red */
+.mand {
+  display: inline-block;
+  padding: 0.18em 0.55em 0.05em;
+  background: var(--hold);
+  color: #fff;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+/* ---------- Hero ---------- */
+
+.hero { padding-block: clamp(40px, 7vw, 96px) var(--section); }
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: clamp(40px, 6vw, 88px);
+  align-items: center;
+}
+
+.hero-copy { display: grid; gap: 26px; justify-items: start; }
+
+.version-sign {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--concrete);
+  font-weight: 600;
+  font-size: 0.97rem;
+}
+.version-sign .loc { font-size: 1rem; }
+
+.hero h1 {
+  font-size: clamp(2.6rem, 5.6vw, 4.6rem);
+  font-weight: 900;
+  line-height: 1.0;
+  letter-spacing: -0.03em;
+  max-width: 13ch;
+}
+
+.lead {
+  font-size: clamp(1.15rem, 1.6vw, 1.32rem);
+  line-height: 1.5;
+  color: #D3DEE1;
+  max-width: 44ch;
+}
+
+.actions { display: flex; flex-wrap: wrap; gap: 12px; }
+
+.fineprint { color: var(--concrete); font-size: 0.9rem; max-width: 52ch; }
+
+.stand {
+  margin: 0;
+  border-radius: 36px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(127, 200, 216, 0.18),
+    0 40px 80px -30px rgba(0, 0, 0, 0.6);
+}
+
+.stand svg { width: 100%; height: auto; }
+
+.stand-no {
+  font-family: var(--font);
+  font-weight: 900;
+  font-size: 34px;
+  fill: #F2B84B;
+  opacity: 0.85;
+}
+
+/* The one orchestrated moment: the aircraft rolls in, stops on the bar, then the equipment arrives. */
+.taxi { animation: taxi-in 3s cubic-bezier(0.22, 0.61, 0.25, 1) both; }
+
+.tunnel {
+  stroke-dasharray: 100 100;
+  animation: jetway-out 1.3s 3.1s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.gear { animation: arrive 0.7s ease-out both; }
+.gpu { animation-delay: 3.6s; }
+.stairs { animation-delay: 4.1s; }
+.fuel { animation-delay: 4.6s; }
+
+.hose {
+  stroke-dasharray: 100 100;
+  animation: jetway-out 0.6s 5.2s ease-out both;
+}
+
+/* With JavaScript, the sequence waits until the stand scrolls into view (on phones it starts below the fold). */
+.js .stand:not(.play) .taxi,
+.js .stand:not(.play) .tunnel,
+.js .stand:not(.play) .gear,
+.js .stand:not(.play) .hose { animation-play-state: paused; }
+
+@keyframes taxi-in {
+  from { transform: translateY(560px); }
+  to { transform: translateY(0); }
+}
+
+@keyframes jetway-out {
+  from { stroke-dashoffset: 62; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes arrive {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Sections ---------- */
+
+.section { padding-block: var(--section); }
+
+.section-head {
+  display: grid;
+  gap: 18px;
+  margin-bottom: clamp(40px, 5vw, 64px);
+}
+.section-head p { color: #C9D6DA; font-size: 1.12rem; max-width: 60ch; }
+
+/* ---------- Turnaround: steps along a lead-in line ---------- */
+
+#turnaround { border-top: 1px solid rgba(127, 200, 216, 0.1); }
+
+.leadin {
+  --line: 6px;
+  --dot: 44px;
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0 0 56px;
+  counter-reset: step;
+  display: grid;
+  gap: 44px;
+  max-width: 820px;
+}
+
+/* The yellow line the steps sit on */
+.leadin::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--dot) / 2 - var(--line) / 2);
+  top: 8px;
+  bottom: 0;
+  width: var(--line);
+  border-radius: 3px;
+  background: var(--taxi);
+}
+
+/* Stop bar at the end of the line */
+.leadin::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--dot) / 2 - 36px);
+  bottom: -6px;
+  width: 72px;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--taxi);
+}
+
+.leadin li {
+  position: relative;
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "title cmd" "text cmd";
+  column-gap: 32px;
+  row-gap: 8px;
+  padding-left: calc(var(--dot) + 28px);
+}
+
+.leadin li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: -6px;
+  width: var(--dot);
+  height: var(--dot);
+  display: grid;
+  place-items: center;
+  padding-top: 4px;
+  border-radius: 50%;
+  background: var(--apron);
+  border: 3px solid var(--taxi);
+  color: var(--taxi);
+  font-weight: 900;
+  font-size: 1.15rem;
+}
+
+.leadin h3 { grid-area: title; }
+.leadin p { grid-area: text; color: #C9D6DA; }
+
+.leadin code {
+  grid-area: cmd;
+  align-self: start;
+  white-space: nowrap;
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: var(--sign);
+  color: var(--taxi);
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: 1px solid rgba(242, 184, 75, 0.35);
+}
+.leadin code::before { content: "> "; color: var(--concrete); }
+
+/* ---------- Rules ---------- */
+
+.section-rules {
+  background: rgba(10, 26, 31, 0.55);
+  border-block: 1px solid rgba(127, 200, 216, 0.1);
+}
+
+.signs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 48px 56px;
+}
+
+.signs li { display: grid; gap: 16px; align-content: start; }
+
+.sign {
+  display: flex;
+  flex-wrap: wrap;
+  width: fit-content;
+  max-width: 100%;
+  padding: 5px;
+  background: var(--sign);
+  border-radius: 4px;
+  font-size: clamp(1.1rem, 2vw, 1.4rem);
+  line-height: 1.25;
+  box-shadow: 0 14px 30px -16px rgba(0, 0, 0, 0.8);
+}
+.sign .mand, .sign .loc { display: flex; align-items: center; border-radius: 2px; }
+.sign .loc { border-width: 3px; }
+
+.signs p { color: #C9D6DA; max-width: 46ch; }
+
+/* ---------- Aircraft ---------- */
+
+.aircraft-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(40px, 6vw, 88px);
+  align-items: start;
+}
+
+.aircraft-grid > div { display: grid; gap: 20px; }
+.aircraft-grid > div > p { color: #C9D6DA; }
+
+.pmdg {
+  margin-top: 16px;
+  padding: 24px 26px;
+  border-left: 6px solid var(--jetway);
+  background: var(--apron-2);
+  border-radius: 0 10px 10px 0;
+  display: grid;
+  gap: 10px;
+}
+.pmdg p { color: #C9D6DA; }
+
+.code,
+.terminal pre {
+  margin: 0;
+  overflow-x: auto;
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--hull);
+}
+
+.code {
+  padding: 28px 30px;
+  background: var(--joint);
+  border: 1px solid rgba(127, 200, 216, 0.14);
+  border-radius: 14px;
+}
+
+.c { color: #6F8B92; }
+.k { color: var(--jetway); }
+.s { color: var(--taxi); }
+.n { color: #F4D9A6; }
+
+/* ---------- Uses ---------- */
+
+.section-uses { padding-top: 0; }
+
+.uses {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  border-top: 2px solid var(--apron-3);
+}
+
+.uses > div {
+  padding: 26px 28px 0 0;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.uses > div + div { padding-left: 28px; border-left: 1px solid var(--apron-3); }
+
+.uses dt { font-weight: 800; font-size: 1.2rem; }
+.uses dd { margin: 0; color: #C9D6DA; }
+
+/* ---------- Install ---------- */
+
+.section-install {
+  background: linear-gradient(180deg, rgba(10, 26, 31, 0.6), rgba(10, 26, 31, 0.2));
+  border-top: 1px solid rgba(127, 200, 216, 0.1);
+}
+
+.stopbar {
+  width: 120px;
+  height: 14px;
+  border-radius: 7px;
+  background: var(--taxi);
+  margin-bottom: 40px;
+}
+
+.install-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: clamp(40px, 6vw, 88px);
+  align-items: start;
+}
+
+.install-grid > div:first-child { display: grid; gap: 16px; }
+.install-grid > div:first-child p { color: #C9D6DA; }
+.install-grid h3 { margin-top: 18px; }
+
+.terminal {
+  background: var(--joint);
+  border: 1px solid rgba(127, 200, 216, 0.14);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.terminal-bar {
+  display: flex;
+  gap: 8px;
+  padding: 14px 18px;
+  background: rgba(127, 200, 216, 0.06);
+  border-bottom: 1px solid rgba(127, 200, 216, 0.1);
+}
+.terminal-bar span {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--apron-3);
+}
+
+.terminal pre { padding: 24px 22px 28px; font-size: 0.86rem; }
+
+.code,
+.terminal pre {
+  scrollbar-width: thin;
+  scrollbar-color: var(--apron-3) transparent;
+}
+
+.contribute {
+  margin-top: clamp(64px, 8vw, 104px);
+  padding: clamp(28px, 4vw, 44px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px 40px;
+  border: 2px solid var(--taxi);
+  border-radius: 18px;
+  background: rgba(242, 184, 75, 0.06);
+}
+.contribute > div { display: grid; gap: 12px; }
+.contribute h2 { font-size: clamp(1.7rem, 2.8vw, 2.2rem); }
+.contribute p { color: #C9D6DA; max-width: 58ch; }
+
+/* ---------- Footer ---------- */
+
+.site-footer {
+  padding-block: 36px 44px;
+  border-top: 1px solid rgba(127, 200, 216, 0.1);
+  color: var(--concrete);
+  font-size: 0.92rem;
+}
+
+.footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px 32px;
+}
+.footer-row p { display: flex; align-items: center; gap: 10px; }
+
+/* ---------- Smaller screens ---------- */
+
+@media (max-width: 960px) {
+  .hero-grid,
+  .aircraft-grid,
+  .install-grid { grid-template-columns: minmax(0, 1fr); }
+
+  .stand { max-width: 520px; width: 100%; justify-self: center; }
+
+  .uses { grid-template-columns: minmax(0, 1fr); border-top: 0; }
+  .uses > div,
+  .uses > div + div {
+    padding: 22px 0;
+    border-left: 0;
+    border-top: 1px solid var(--apron-3);
+  }
+}
+
+@media (max-width: 720px) {
+  .site-header nav a:not(.nav-source) { display: none; }
+
+  .signs { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+  .sign { font-size: 0.95rem; }
+
+  .leadin { --dot: 38px; gap: 36px; }
+  .leadin li {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "title" "text" "cmd";
+    padding-left: calc(var(--dot) + 18px);
+  }
+  .leadin code { justify-self: start; margin-top: 6px; }
+
+  .stand { border-radius: 26px; }
+
+  .contribute .btn { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .taxi, .tunnel, .gear, .hose { animation: none; }
+}
