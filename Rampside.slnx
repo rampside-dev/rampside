@@ -4,6 +4,7 @@
     <Project Path="src/Rampside.MsfsBridge/Rampside.MsfsBridge.csproj" />
     <Project Path="src/Rampside.Hosting/Rampside.Hosting.csproj" />
     <Project Path="src/Rampside.App/Rampside.App.csproj" />
+    <Project Path="src/Rampside.Desktop/Rampside.Desktop.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Rampside.Core.Tests/Rampside.Core.Tests.csproj" />
